@@ -11,6 +11,7 @@
 #include <linux/module.h> /* Needed by all modules */
 #include <linux/netfilter.h>
 #include <linux/device.h>
+#include <linux/errno.h>
 
 
 // the protocols we will work with

@@ -28,16 +28,16 @@ __attribute__((section("__versions"))) = {
 	{ 0x969391b7, "device_create_file" },
 	{ 0xb0f2df0b, "device_create" },
 	{ 0x121a120e, "__register_chrdev" },
+	{ 0xd0d8621b, "strlen" },
 	{ 0x12da5bb2, "__kmalloc" },
 	{ 0x37a0cba, "kfree" },
-	{ 0xe914e41e, "strcpy" },
+	{ 0x5656eb99, "kmem_cache_alloc_trace" },
+	{ 0xf5f1d863, "kmalloc_caches" },
 	{ 0xf0fdf6cb, "__stack_chk_fail" },
 	{ 0x61651be, "strcat" },
 	{ 0x4ea56f9, "_kstrtol" },
 	{ 0x1b6314fd, "in_aton" },
 	{ 0x85df9b6c, "strsep" },
-	{ 0x5656eb99, "kmem_cache_alloc_trace" },
-	{ 0xf5f1d863, "kmalloc_caches" },
 	{ 0x349cba85, "strchr" },
 	{ 0x91715312, "sprintf" },
 	{ 0x2276db98, "kstrtoint" },
@@ -54,4 +54,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "FCE0388ACCF84AC2A303674");
+MODULE_INFO(srcversion, "59B5E80A12A72E1B0908458");

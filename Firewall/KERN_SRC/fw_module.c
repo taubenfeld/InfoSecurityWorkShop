@@ -1,6 +1,6 @@
 #include "fw.h"
 #include "chardev_rules.c"
-#include "chardev_basic_info.c"
+#include "chardev_info.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Amir Taubenfeld");
@@ -53,6 +53,12 @@ int register_drivers(void) {
     class_destroy(sysfs_class);
     return -1;
   }
+  if (register_rules_driver(sysfs_class) == -1) {
+    remove_info_device(sysfs_class);
+    class_destroy(sysfs_class);
+    return -1;
+  }
+  return 0;
 }
 
 void register_hooks(void) {
@@ -87,6 +93,8 @@ static void __exit dismiss_module(void) {
   printk(KERN_INFO "Amir's firewall is been dismissed!\n");
   nf_unregister_hook(&forward_hook_struct);
   nf_unregister_hook(&post_routing_hook_struct);
+  remove_info_device(sysfs_class);
+  remove_rules_device(sysfs_class);
   class_destroy(sysfs_class);
 }
 
