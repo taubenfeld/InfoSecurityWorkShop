@@ -1,16 +1,16 @@
 #include "fw.h"
 #include "chardev_rules.c"
 #include "chardev_info.c"
+#include "packets_handeling.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Amir Taubenfeld");
 
 // Netfilter stuff.
-static struct nf_hook_ops forward_hook_struct;
+static struct nf_hook_ops pre_hook_struct;
 static struct nf_hook_ops post_routing_hook_struct;
 
 static struct class* sysfs_class = NULL;
-
 
 /***************************************************************************************************
  * Netfilter hooks.
@@ -20,11 +20,17 @@ static struct class* sysfs_class = NULL;
  * Function that will be hooked.
  * This function will be called by netfilter for forwarded packets.
  */
-unsigned int  forward_packets_hook(unsigned int hooknum, struct sk_buff *skb,
+unsigned int  pre_routing_hook(unsigned int hooknum, struct sk_buff *skb,
     const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *)) {
-  printk(KERN_INFO "*** packet blocked ***\n");
-  number_of_blocked_packets++;
-  return NF_DROP;
+  if (verify_packet(skb, hooknum) == NF_ACCEPT) {
+    printk(KERN_INFO "*** packet passed ***\n");
+    number_of_passed_packets++;
+    return NF_ACCEPT;
+  } else {
+    printk(KERN_INFO "*** packet blocked ***\n");
+    number_of_blocked_packets++;
+    return NF_DROP;
+  }
 }
 
 /**
@@ -33,9 +39,15 @@ unsigned int  forward_packets_hook(unsigned int hooknum, struct sk_buff *skb,
  */
 unsigned int  post_routing_hook(unsigned int hooknum, struct sk_buff *skb,
     const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *)) {
-  printk(KERN_INFO "*** packet passed ***\n");
-  number_of_passed_packets++;
-  return NF_ACCEPT;
+  if (verify_packet(skb, hooknum) == NF_ACCEPT) {
+    printk(KERN_INFO "*** packet passed ***\n");
+    number_of_passed_packets++;
+    return NF_ACCEPT;
+  } else {
+    printk(KERN_INFO "*** packet blocked ***\n");
+    number_of_blocked_packets++;
+    return NF_DROP;
+  }
 }
 
 
@@ -58,32 +70,52 @@ int register_drivers(void) {
     class_destroy(sysfs_class);
     return -1;
   }
-  return 0;
+  return 1;
 }
 
-void register_hooks(void) {
+int register_hooks(void) {
   // Register hook that disables packet forwarding.
-  forward_hook_struct.hook = forward_packets_hook;  // Hook our function.
-  forward_hook_struct.hooknum = NF_INET_FORWARD;  // Hook to forward messages.
-  forward_hook_struct.priority = NF_IP_PRI_FIRST;
-  forward_hook_struct.pf = PF_INET;
-  nf_register_hook(&forward_hook_struct);
+  pre_hook_struct.hook = pre_routing_hook;  // Hook our function.
+  pre_hook_struct.hooknum = NF_INET_PRE_ROUTING;
+  pre_hook_struct.priority = NF_IP_PRI_FIRST;
+  pre_hook_struct.pf = PF_INET;
+  if (nf_register_hook(&pre_hook_struct) < 0) {
+    return -1;
+  }
 
   // Register print packed passed on all packed that have reached post rounting.
   post_routing_hook_struct.hook = post_routing_hook;  // Hook our function.
   post_routing_hook_struct.hooknum = NF_INET_POST_ROUTING;  // Hook to on post routing.
   post_routing_hook_struct.priority = NF_IP_PRI_LAST;
   post_routing_hook_struct.pf = PF_INET;
-  nf_register_hook(&post_routing_hook_struct);
+  if (nf_register_hook(&post_routing_hook_struct) < 0) {
+    nf_unregister_hook(&pre_hook_struct);
+    return -1;
+  }
+  return 1;
+}
+
+
+static void dismiss_hooks(void) {
+  nf_unregister_hook(&pre_hook_struct);
+  nf_unregister_hook(&post_routing_hook_struct);
 }
 
 /**
  * The function that initialize the module.
  */
 static int __init start_module(void) {
-  printk(KERN_INFO "Amir's firewall is beening loaded!\n");
-  register_hooks();
-  return register_drivers();  // if non-0 return, then init_module have failed.
+  printk(KERN_INFO "Amir's firewall is being loaded!\n");
+  if (register_hooks() < 0) {
+    printk(KERN_INFO "ERROR: Failed to register hooks\n");
+    return -1;
+  }
+  if (register_drivers() < 0) {
+    dismiss_hooks();
+    printk(KERN_INFO "ERROR: Failed to register drivers\n");
+    return -1;
+  }
+  return 0;  // if non-0 return, then init_module have failed.
 }
 
 /**
@@ -91,8 +123,7 @@ static int __init start_module(void) {
  */
 static void __exit dismiss_module(void) {
   printk(KERN_INFO "Amir's firewall is been dismissed!\n");
-  nf_unregister_hook(&forward_hook_struct);
-  nf_unregister_hook(&post_routing_hook_struct);
+  dismiss_hooks();
   remove_info_device(sysfs_class);
   remove_rules_device(sysfs_class);
   class_destroy(sysfs_class);

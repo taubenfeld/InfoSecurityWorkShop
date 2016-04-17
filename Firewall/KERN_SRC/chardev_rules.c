@@ -8,10 +8,13 @@ char *RULES_DEVICE_NAME = "fw_rules";
 
 // TODO(amirt): What is the limit on the number of rules? Should it be a char or an int?
 static unsigned short number_of_rules;
-static rule_t *rules_table;
+static rule_t *rules_table = NULL;
 
-static int PORT_ANY_NUMBER = 1024;
-static int PORT_ERROR_NUMBER = 1025;
+static int PORT_1023 = 1023; // All ports greater than 1023 should be treated equally.
+static int PORT_ANY_NUMBER = 1025;
+static int PORT_ERROR_NUMBER = 1026;
+
+static int IP_ANY = 0;
 
 static int ACTION_ERROR_NUMBER = 255;
 
@@ -179,11 +182,11 @@ int parse_port_from_string(char *str_port) {
     return PORT_ANY_NUMBER;
   }
   if (str_port[0] == '>') {
-    if (!kstrtoint(str_port+1, 10, &result) && result == 1023) { // Success.
-      return result;
+    if (!kstrtoint(str_port+1, 10, &result) && result == PORT_1023) { // Success.
+      return result + 1;
     }
   }
-  else if (!kstrtoint(str_port, 10, &result) && 0 < result && result < 1024) {
+  else if (!kstrtoint(str_port, 10, &result) && 0 < result && result <= PORT_1023) {
     return result;
   }
   printk(KERN_INFO "%s\n", "Failed to get port from string");
@@ -198,7 +201,7 @@ void parse_string_from_port(int port, char target_str_port[]) {
   if (port == PORT_ANY_NUMBER) {
     sprintf(target_str_port, "%s", "any");
   }
-  else if (port == 1023) {
+  else if (port > PORT_1023) {
     sprintf(target_str_port, "%s", ">1023");
   }
   else {
@@ -215,7 +218,7 @@ int parse_ips_from_string(char *full_ip_string, __be32 *ip_base, __u8 *mask_size
   char *ip_base_string;
 
   if (strcmp(full_ip_string, "any") == 0) {
-    *ip_base = 0;
+    *ip_base = IP_ANY;
     *mask_size = 0;
     return 1;
   }
@@ -264,7 +267,7 @@ void int_ip_to_dot_ip(int ip, char str_ip[]) {
 
 void parse_string_from_ip(int ip_base, int mask_size, char target_str_ip[]) {
   char mask_size_string[10] = {0};
-  if (ip_base == 0) {
+  if (ip_base == IP_ANY) {
     sprintf(target_str_ip, "%s", "any");
     return;
   }
@@ -398,6 +401,9 @@ ssize_t set_rules(
   }
   printk(KERN_INFO "number of rules: %d\n", number_of_rules);
   // TODO(amirt): check all kmalloc allocations.
+  if (rules_table != NULL) { // Rule table has been used before.
+    kfree(rules_table);
+  }
   rules_table = kmalloc(number_of_rules * sizeof(rule_t), GFP_KERNEL);
   for (i=0; i<number_of_rules; i++) {
     printk(KERN_INFO "************************** Start parsing rule *****************************");
@@ -450,6 +456,9 @@ int register_rules_driver(struct class* fw_sysfs_class) {
 }
 
 int remove_rules_device(struct class* fw_sysfs_class) {
+  if (rules_table != NULL) { // Rule table has been used before.
+    kfree(rules_table);
+  }
   device_remove_file(
       rules_device_sysfs_device, (const struct device_attribute *)&dev_attr_rules_load_store.attr);
   device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));

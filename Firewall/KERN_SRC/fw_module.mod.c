@@ -40,10 +40,10 @@ __attribute__((section("__versions"))) = {
 	{ 0x349cba85, "strchr" },
 	{ 0x91715312, "sprintf" },
 	{ 0x2276db98, "kstrtoint" },
+	{ 0x50eedeb8, "printk" },
 	{ 0xe2d5255a, "strcmp" },
 	{ 0xf9e73082, "scnprintf" },
 	{ 0x42224298, "sscanf" },
-	{ 0x50eedeb8, "printk" },
 	{ 0xb4390f9a, "mcount" },
 };
 
@@ -53,4 +53,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "D70A23CA9E552F84720153A");
+MODULE_INFO(srcversion, "CB56B615592C7B5A0FE93CF");
