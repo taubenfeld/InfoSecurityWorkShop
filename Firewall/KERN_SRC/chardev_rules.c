@@ -13,6 +13,8 @@ static rule_t *rules_table;
 static int PORT_ANY_NUMBER = 1024;
 static int PORT_ERROR_NUMBER = 1025;
 
+static int ACTION_ERROR_NUMBER = 255;
+
 int rules_device_major_number;
 struct device* rules_device_sysfs_device = NULL;
 struct file_operations rules_device_fops = {
@@ -149,8 +151,8 @@ int get_action_from_string(char *action) {
   if (strcmp(action, "drop") == 0){
     return NF_DROP;
   }
-  return -1;
-  printk(KERN_INFO "%s\n", "Failed to get action from string");
+  printk(KERN_INFO "%s\n", "Failed to get action from string.");
+  return ACTION_ERROR_NUMBER;
 }
 
 /*
@@ -178,11 +180,11 @@ int parse_port_from_string(char *str_port) {
   }
   if (str_port[0] == '>') {
     if (!kstrtoint(str_port+1, 10, &result) && result == 1023) { // Success.
-      return htons(result);
+      return result;
     }
   }
   else if (!kstrtoint(str_port, 10, &result) && 0 < result && result < 1024) {
-    return htons(result);
+    return result;
   }
   printk(KERN_INFO "%s\n", "Failed to get port from string");
   return PORT_ERROR_NUMBER;
@@ -195,6 +197,9 @@ int parse_port_from_string(char *str_port) {
 void parse_string_from_port(int port, char target_str_port[]) {
   if (port == PORT_ANY_NUMBER) {
     sprintf(target_str_port, "%s", "any");
+  }
+  else if (port == 1023) {
+    sprintf(target_str_port, "%s", ">1023");
   }
   else {
     sprintf(target_str_port, "%d", port);
@@ -258,14 +263,15 @@ void int_ip_to_dot_ip(int ip, char str_ip[]) {
 }
 
 void parse_string_from_ip(int ip_base, int mask_size, char target_str_ip[]) {
-  char mask_string[10] = {0};
+  char mask_size_string[10] = {0};
   if (ip_base == 0) {
     sprintf(target_str_ip, "%s", "any");
+    return;
   }
   int_ip_to_dot_ip(ip_base, target_str_ip);
   if (mask_size != 0) {
-    sprintf(mask_string, "/%d", mask_size);
-    strcat(target_str_ip, mask_string);
+    sprintf(mask_size_string, "/%d", mask_size);
+    strcat(target_str_ip, mask_size_string);
   }
 }
 
@@ -310,18 +316,17 @@ rule_t *parse_rule_from_string(char* str_rule) {
   printk(KERN_INFO "ack: %s\n", ack);
   printk(KERN_INFO "action: %s\n", action);
 
-	if(!(rule->direction = get_direction_from_string(direction))
+	if (!(rule->direction = get_direction_from_string(direction))
 	    || !(parse_ips_from_string(src_ip_string, &rule->src_ip, &rule->src_prefix_size))
 	    || !(parse_ips_from_string(dst_ip_string, &rule->dst_ip, &rule->dst_prefix_size))
 	    || !(rule->protocol = get_protocol_from_string(protocol))
 	    || ((rule->src_port = parse_port_from_string(src_port)) == PORT_ERROR_NUMBER)
 	    || ((rule->dst_port = parse_port_from_string(dst_port)) == PORT_ERROR_NUMBER)
 	    || !(rule->ack = get_ack_from_string(ack))
-	    || (rule->action = get_action_from_string(action)) == -1) {
+	    || ((rule->action = get_action_from_string(action)) == ACTION_ERROR_NUMBER )) {
 	  kfree(rule);
 	  rule = NULL;
 	}
-
 	kfree(src_ip_string);
 	kfree(dst_ip_string);
 	return rule;
@@ -363,15 +368,17 @@ int parse_string_from_rule(rule_t rule, char *buffer, int size) {
 ssize_t get_rules(struct device *dev,struct device_attribute *attr, char *buf) {
   rule_t rule;
   int i;
-  char str_rule[200] = {0}; // 200 bytes is more the enough for one rule.
+  char str_rule[200] = {0}; // 200 bytes is more then enough for one rule.
   printk(KERN_INFO "Number of rules = %hu\n", number_of_rules);
-  for (i=0; i<number_of_rules; i++) {
+  buf[0] = 0; // Prepare buf for strcat.
+  for (i = 0; i < number_of_rules; i++) {
     rule = rules_table[i];
     parse_string_from_rule(rule, str_rule, PAGE_SIZE);
-    printk(KERN_INFO "%s\n", str_rule);
+    printk(KERN_INFO "%s", str_rule);
     strcat(buf, str_rule);
   }
-  return 0;
+  printk(KERN_INFO "Done getting rules.\n");
+  return PAGE_SIZE;
 }
 
 /*
@@ -393,16 +400,20 @@ ssize_t set_rules(
   // TODO(amirt): check all kmalloc allocations.
   rules_table = kmalloc(number_of_rules * sizeof(rule_t), GFP_KERNEL);
   for (i=0; i<number_of_rules; i++) {
+    printk(KERN_INFO "************************** Start parsing rule *****************************");
     str_rule = strsep(&str_rules, "\n");
     if ((rule = parse_rule_from_string(str_rule)) == NULL) {
-      printk(KERN_INFO "Failed loading rule table: Invalid rule format.");
+      printk(KERN_INFO "Failed loading rule table: Invalid rule format.\n");
       kfree(rules_table);
       return EINVAL;
     }
     rules_table[i] = *rule;
     kfree(rule);
+    printk(KERN_INFO "************************** Done parsing rule ******************************");
   }
-  return strlen(buf);
+  printk(KERN_INFO "Done loading rules.\n");
+  //return strlen(buf+sizeof(number_of_rules)) + sizeof(number_of_rules);
+  return PAGE_SIZE;
 }
 
 static DEVICE_ATTR(rules_load_store, S_IRWXO , get_rules, set_rules);
