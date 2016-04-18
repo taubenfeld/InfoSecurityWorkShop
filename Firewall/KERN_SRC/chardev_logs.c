@@ -9,12 +9,11 @@ int logs_device_major_number;
 struct device* logs_device_sysfs_device = NULL;
 
 /*
- * Variables that holds our current locations when reading the logs.
- * This will be used to continue to read from our last position.
+ * Variables that uses for the read operation.
  */
-log_row_t *cur_entry_in_read;
+char *read_buffer;
 int remaining_number_of_bytes_to_read;
-
+char *pointer_to_current_location_in_read_buffer;
 /*
  * The size of each field in the log entry when printing it.
  */
@@ -62,11 +61,13 @@ void clear_logs_list(void) {
 
 void get_logs(char *buff) {
   log_row_t *cur_entry;
-  char temp_str_log[180] = {0}; // SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG.
+  // SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG + 1.
+  char temp_str_log[181] = {0};
   buff[0] = 0; // Prepare buff for strcat.
-  list_for_each_entry(cur_entry, &logs_list.list, list) {
-    //scnprintf(temp_str_log, 100, "%-.19s %-.19s %-.19s\n", "aaaaaaaaaaamir", "assaf", "tamar");
-    sprintf(temp_str_log, "%-.19lu %-.19cu %-.19cu %-.19cu %-.19d %-.19d %-.19h %-.19h %-.19d\n",
+  // Start to read from where we stopped last time (cur_entry_in_read).
+  list_for_each_entry(cur_entry, &(logs_list.list), list) {
+    scnprintf(temp_str_log, 181,
+        "%-19.lu %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.d\n",
         cur_entry->timestamp,
         cur_entry->protocol,
         cur_entry->action,
@@ -78,22 +79,19 @@ void get_logs(char *buff) {
         cur_entry->reason);
     strcat(buff, temp_str_log);
   }
-  cur_entry_in_read = cur_entry;
 }
-
 int get_logs_size(void) {
   return logs_size;
 }
 
 void init_logs_list(void) {
-  log_row_t *newItem;
   int i;
   INIT_LIST_HEAD(&logs_list.list);
   logs_size = 0;
 
   /* adding elements to mylist */
   for(i=0; i<3; ++i) {
-    add_log(i,i,i,i,i,i,i,i,i);
+    add_log(1000,i,i,i,i,i,i,i,i);
   }
 }
 
@@ -102,10 +100,6 @@ void init_logs_list(void) {
  **************************************************************************************************/
 
 
-// TODO: remove this.
-int max_retry = 100;
-int cur_retry = 0;
-
 /*
  * Our custom open function  for file_operations. Each time we open the device we initializing the
  * changing variables (so we will be able to read it again and again).
@@ -113,53 +107,47 @@ int cur_retry = 0;
  * In this implementation we prepare the buffer that should be send to the user.
  */
 int open_log_device(struct inode *_inode, struct file *_file) {
-  printk(KERN_INFO "Open logs file\n");
-  cur_retry = 0;
-  cur_entry_in_read = &logs_list;
-  remaining_number_of_bytes_to_read =
-      get_logs_size() * SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG;
+  printk(KERN_INFO "Opening logs file\n");
+  if (get_logs_size() > 0) {
+    remaining_number_of_bytes_to_read =
+        get_logs_size() * SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG + 1;
+    // Prepare all the logs that should be written.
+    read_buffer = kcalloc(remaining_number_of_bytes_to_read, 1, GFP_KERNEL);
+    pointer_to_current_location_in_read_buffer = read_buffer;
+    get_logs(read_buffer); // Fill the buffer with the logs.
+  }
   return 0;
 }
 
 /*
  * Implementation for the read method of file_operations.
- * Please note that in each iterations of the method we are reading all the the amount of rules
- * that the buffer can contain. We are not reading all the logs at once because it can take to much
- * memory from the kernel.
  */
 ssize_t read_logs(struct file *filp, char *buff, size_t length, loff_t *offp) {
   ssize_t bytes_to_write_in_the_current_iteration =
       (remaining_number_of_bytes_to_read < length) ? remaining_number_of_bytes_to_read : length;
-  int logs_to_write_in_the_current_iteration = //TODO use this to break loop.
-      bytes_to_write_in_the_current_iteration /
-        (SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG);
-  char *temp_buffer;
-
-  if (cur_retry++ > max_retry){
-    printk(KERN_INFO "Max retry exceeded\n");
-    return 0;
-  }
 
   // If nothing left to write return.
   if (bytes_to_write_in_the_current_iteration == 0) {
     return 0;
   }
 
-  // Fill the buffer with the logs that should be returned in the current iteration.
-  temp_buffer = kmalloc(bytes_to_write_in_the_current_iteration, GFP_KERNEL);
-  get_logs(temp_buffer);
-
   // Send the data to the user through 'copy_to_user'
-  if (copy_to_user(buff, temp_buffer, bytes_to_write_in_the_current_iteration)) {
-    kfree(temp_buffer);
+  if (copy_to_user(
+      buff, pointer_to_current_location_in_read_buffer, bytes_to_write_in_the_current_iteration)) {
+    kfree(read_buffer);
     return -EFAULT;
   } else {
-    // fuction succeed, we just sent the user 'num_of_bytes' bytes, so we updating the counter and
-    // the string pointer index.
-    kfree(temp_buffer);
+    // function succeeded, we just sent the user 'num_of_bytes' bytes, so we updating the counter
+    // and the string pointer index.
     remaining_number_of_bytes_to_read -= bytes_to_write_in_the_current_iteration;
+    pointer_to_current_location_in_read_buffer += bytes_to_write_in_the_current_iteration;
     return bytes_to_write_in_the_current_iteration;
   }
+}
+
+int release_log_device(struct inode *inode, struct file *file) {
+  kfree(read_buffer);
+  return 0;
 }
 
 /*
@@ -168,7 +156,8 @@ ssize_t read_logs(struct file *filp, char *buff, size_t length, loff_t *offp) {
 static struct file_operations logs_device_fops = {
   .owner = THIS_MODULE,
   .open = open_log_device,
-  .read = read_logs
+  .read = read_logs,
+  .release = release_log_device
 };
 
 /***************************************************************************************************
