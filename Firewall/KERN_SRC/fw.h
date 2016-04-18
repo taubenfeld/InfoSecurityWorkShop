@@ -12,7 +12,7 @@
 #include <linux/netfilter.h>
 #include <linux/device.h>
 #include <linux/errno.h>
-
+#include <linux/list.h>
 
 // the protocols we will work with
 typedef enum {
@@ -96,6 +96,7 @@ typedef struct {
 	__be16 			dst_port;	  				// if you use this struct in userspace, change the type to unsigned short
 	reason_t     	reason;     		 	// rule#index, or values from: reason_t
 	unsigned int   	count;        	// counts this line's hits
+	struct list_head list;          /* kernel's list structure */
 } log_row_t;
 
 #endif // _FW_H_

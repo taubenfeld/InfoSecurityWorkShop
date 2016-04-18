@@ -296,7 +296,7 @@ rule_t *parse_rule_from_string(char* str_rule) {
 	char dst_port[6] = {0};
 	char ack[4] = {0};
 	char action[7] = {0};
-
+	//TODO add dot to all the places.
 	sscanf(str_rule, "%19s %3s %19s %19s %5s %5s %5s %3s %6s\n",
 	    rule->rule_name,
       direction,

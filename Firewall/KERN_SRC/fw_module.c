@@ -2,6 +2,7 @@
 #include "chardev_rules.c"
 #include "chardev_info.c"
 #include "packets_handeling.c"
+#include "chardev_logs.c"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Amir Taubenfeld");
@@ -70,6 +71,13 @@ int register_drivers(void) {
     class_destroy(sysfs_class);
     return -1;
   }
+  if (register_logs_driver(sysfs_class) == -1) {
+    remove_info_device(sysfs_class);
+    remove_rules_device(sysfs_class);
+    class_destroy(sysfs_class);
+    return -1;
+  }
+
   return 1;
 }
 
@@ -126,6 +134,7 @@ static void __exit dismiss_module(void) {
   dismiss_hooks();
   remove_info_device(sysfs_class);
   remove_rules_device(sysfs_class);
+  remove_logs_device(sysfs_class);
   class_destroy(sysfs_class);
 }
 

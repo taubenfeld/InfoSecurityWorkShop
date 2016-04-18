@@ -887,6 +887,7 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/fw_module.o := \
   /home/fw/link_workspace/Firewall/KERN_SRC/chardev_rules.c \
   /home/fw/link_workspace/Firewall/KERN_SRC/chardev_info.c \
   /home/fw/link_workspace/Firewall/KERN_SRC/packets_handeling.c \
+  /home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.c \
 
 /home/fw/link_workspace/Firewall/KERN_SRC/fw_module.o: $(deps_/home/fw/link_workspace/Firewall/KERN_SRC/fw_module.o)
 
