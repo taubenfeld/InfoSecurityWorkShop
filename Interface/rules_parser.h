@@ -1,7 +1,13 @@
 #ifndef _RULES_PARSER_
 #define _RULES_PARSER_
 
-#include <linux/netfilter.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+
+
+#define NF_DROP 0
+#define NF_ACCEPT 1
 
 // the protocols we will work with
 typedef enum {

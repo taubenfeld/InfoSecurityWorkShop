@@ -26,19 +26,6 @@ struct file_operations rules_device_fops = {
  **************************************************************************************************/
 
 
-/*
- * Sysfs show rules size implementation.
- */
-ssize_t sysfs_show_rules_size(struct device *dev,struct device_attribute *attr, char *buf) {
-  return scnprintf(buf, sizeof(int), "%d\n", number_of_rules);
-}
-/*
- * Register attribute for display size.
- * TODO: verify that NULL is appropriate.
- */
-static DEVICE_ATTR(rules_size, S_IROTH, sysfs_show_rules_size, NULL);
-
-
 ssize_t get_rules(struct device *dev,struct device_attribute *attr, char *buf) {
   rule_t rule;
   int i;
@@ -46,7 +33,7 @@ ssize_t get_rules(struct device *dev,struct device_attribute *attr, char *buf) {
   buf[0] = 0;
   for (i=0; i < number_of_rules; i++){
     rule = rules_table[i];
-    scnprintf(output_string_rule, 80, "%s %u %u %u %u %u %u %u %u %u %u",
+    scnprintf(output_string_rule, 80, "%s %u %u %u %u %u %u %u %u %u %u\n",
         rule.rule_name,
         rule.direction,
         rule.src_ip,
@@ -58,8 +45,8 @@ ssize_t get_rules(struct device *dev,struct device_attribute *attr, char *buf) {
         rule.dst_port,
         rule.ack,
         rule.action);
+    strcat(buf, output_string_rule);
   }
-  strcat(buf, output_string_rule);
   return strlen(buf);
 }
 
@@ -70,29 +57,45 @@ ssize_t get_rules(struct device *dev,struct device_attribute *attr, char *buf) {
  */
 ssize_t set_rules(
     struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
+
   rule_t output_rule;
   int status;
   char *input_string_rule;
   char *input = (char *) buf;
+
+  unsigned int src_prefix_size;
+  unsigned int dst_prefix_size;
+  unsigned int protocol;
+  unsigned int action;
+
   number_of_rules = 0;
   while (strlen(input_string_rule = strsep(&input, "\n")) > 0) {
     if (number_of_rules > MAX_RULES) {
       number_of_rules = 0;
       return EINVAL;
     }
-    status = sscanf(input_string_rule, "%.20s %u %u %u %u %u %u %u %u %u %u",
-            output_rule.rule_name,
-            output_rule.direction,
-            output_rule.src_ip,
-            output_rule.src_prefix_size,
-            output_rule.dst_ip,
-            output_rule.dst_prefix_size,
-            output_rule.protocol,
-            output_rule.src_port,
-            output_rule.dst_port,
-            output_rule.ack,
-            output_rule.action);
+    // Only for debugging remove scanf.
+    status = sscanf(input_string_rule, "%19s %u %u %u %u %u %u %hu %hu %u %u",
+        output_rule.rule_name,
+        &output_rule.direction,
+        &output_rule.src_ip,
+        &src_prefix_size,
+        &output_rule.dst_ip,
+        &dst_prefix_size,
+        &protocol,
+        &output_rule.src_port,
+        &output_rule.dst_port,
+        &output_rule.ack,
+        &action);
 
+    output_rule.src_prefix_size = (char) src_prefix_size;
+    output_rule.dst_prefix_size = (char) dst_prefix_size;
+    output_rule.protocol = (char) protocol;
+    output_rule.action = (char) action;
+
+    printk(KERN_INFO "input_string_rule: %s\n", input_string_rule);
+    printk(KERN_INFO "output_rule.protocol: %u\n", output_rule.protocol);
+    printk(KERN_INFO "status: %d\n", status);
     if (status < NUMBER_OF_FIELDS_IN_RULE) {
       number_of_rules = 0;
       return EINVAL;
@@ -108,6 +111,19 @@ ssize_t set_rules(
 static DEVICE_ATTR(rules_load_store, S_IRWXO , get_rules, set_rules);
 
 
+/*
+ * Sysfs show rules size implementation.
+ */
+ssize_t show_rules_size(struct device *dev,struct device_attribute *attr, char *buf) {
+  return scnprintf(buf, sizeof(int), "%d\n", number_of_rules);
+}
+/*
+ * Register attribute for display size.
+ * TODO: verify that NULL is appropriate.
+ */
+static DEVICE_ATTR(rules_size, S_IROTH, show_rules_size, NULL);
+
+
 /***************************************************************************************************
  * Registration methods
  **************************************************************************************************/
@@ -117,6 +133,7 @@ int register_rules_driver(struct class* fw_sysfs_class) {
   // Create char device. fops is empty because we are using sysfs.
   rules_device_major_number = register_chrdev(0, RULES_DEVICE_NAME, &rules_device_fops);
   if(rules_device_major_number < 0) {
+    printk(KERN_INFO "Failed to register rules device.\n.");
     return -1;
   }
 
@@ -125,6 +142,7 @@ int register_rules_driver(struct class* fw_sysfs_class) {
           fw_sysfs_class, NULL, MKDEV(rules_device_major_number, 0), NULL, RULES_DEVICE_NAME);
   if(IS_ERR(rules_device_sysfs_device)) {
     unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    printk(KERN_INFO "Failed to create rules device.\n.");
     return -1;
   }
 
@@ -133,6 +151,7 @@ int register_rules_driver(struct class* fw_sysfs_class) {
       (const struct device_attribute*) &dev_attr_rules_load_store.attr)) {
     device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));
     unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    printk(KERN_INFO "Failed to create rules load store attribute.\n.");
     return -1;
   }
 
@@ -143,15 +162,13 @@ int register_rules_driver(struct class* fw_sysfs_class) {
         (const struct device_attribute *)&dev_attr_rules_load_store.attr);
     device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));
     unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    printk(KERN_INFO "Failed to create rules size attribute.\n.");
     return -1;
   }
   return 0;
 }
 
 int remove_rules_device(struct class* fw_sysfs_class) {
-  if (rules_table != NULL) { // Rule table has been used before.
-    kfree(rules_table);
-  }
   device_remove_file(
       rules_device_sysfs_device, (const struct device_attribute *)&dev_attr_rules_size.attr);
   device_remove_file(

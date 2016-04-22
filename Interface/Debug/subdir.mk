@@ -7,6 +7,9 @@ C_SRCS += \
 ../main.c \
 ../rules_parser.c 
 
+O_SRCS += \
+../main.o 
+
 OBJS += \
 ./main.o \
 ./rules_parser.o 

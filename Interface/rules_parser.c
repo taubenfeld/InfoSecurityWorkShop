@@ -292,7 +292,7 @@ rule_t *parse_rule_from_string(char* str_rule) {
   char ack[4] = {0};
   char action[7] = {0};
   //TODO Make this secure.
-  scanf(str_rule, "%19.s %3.s %19.s %19.s %5.s %5.s %5.s %3.s %6.s\n",
+  sscanf(str_rule, "%19s %3s %19s %19s %5s %5s %5s %3s %6s",
       rule->rule_name,
       direction,
       src_ip_string,
@@ -302,6 +302,7 @@ rule_t *parse_rule_from_string(char* str_rule) {
       dst_port,
       ack,
       action);
+  printf("------ protocol %s\n", protocol);
 
   if (!(rule->direction = get_direction_from_string(direction))
       || !(parse_ips_from_string(src_ip_string, &rule->src_ip, &rule->src_prefix_size))
@@ -333,7 +334,7 @@ int parse_string_from_rule(rule_t rule, char *buffer) {
   parse_string_from_port(rule.src_port, src_port);
   parse_string_from_port(rule.dst_port, dst_port);
 
-  sprintf(buffer, "%s %s %s %s %s %s %s %s %s\n",
+  sprintf(buffer, "%-19s %-19s %-19s %-19s %-19s %-19s %-19s %-19s %-19s\n",
       rule.rule_name,
       get_string_from_direction(rule.direction),
       src_ip,
@@ -359,23 +360,35 @@ int parse_string_from_rule(rule_t rule, char *buffer) {
  */
 ssize_t rules_kernel_format_to_user_format(char *input, char *output) {
   rule_t rule;
-  char *input_string_rule; // 80 bytes is more then enough for one rule.
-  char output_string_rule[80] = {0}; // 80 bytes is more then enough for one rule.
+  char *input_string_rule; // 80 bytes is more then enough for one raw rule.
+  char output_string_rule[200] = {0}; // 200 bytes is more then enough for one formated rule.
+
+  unsigned int src_prefix_size;
+  unsigned int dst_prefix_size;
+  unsigned int protocol;
+  unsigned int action;
 
   output[0] = 0; // Prepare buffer for strcat.
   while (strlen(input_string_rule = strsep(&input, "\n")) > 0) {
-    scanf(input_string_rule, "%s %u %u %u %u %u %u %u %u %u %u\n",
+    // Only for debugging remove scanf.
+    sscanf(input_string_rule, "%19s %u %u %u %u %u %u %hu %hu %u %u",
         rule.rule_name,
-        rule.direction,
-        rule.src_ip,
-        rule.src_prefix_size,
-        rule.dst_ip,
-        rule.dst_prefix_size,
-        rule.protocol,
-        rule.src_port,
-        rule.dst_port,
-        rule.ack,
-        rule.action);
+        &rule.direction,
+        &rule.src_ip,
+        &src_prefix_size,
+        &rule.dst_ip,
+        &dst_prefix_size,
+        &protocol,
+        &rule.src_port,
+        &rule.dst_port,
+        &rule.ack,
+        &action);
+
+    rule.src_prefix_size = (char) src_prefix_size;
+    rule.dst_prefix_size = (char) dst_prefix_size;
+    rule.protocol = (char) protocol;
+    rule.action = (char) action;
+
     parse_string_from_rule(rule, output_string_rule);
     strcat(output, output_string_rule);
   }
@@ -389,16 +402,18 @@ ssize_t rules_kernel_format_to_user_format(char *input, char *output) {
  * The rules are validated and in case of an -1 is returned.
  */
 ssize_t rules_user_format_to_kernel_format(char *input, char *output) {
+  char temp[80] = {0};
   char *input_string_rule;
-  rule_t *output_rule;
-  char output_string_rule[80]; // 80 bytes is more then enough for one rule.
+  rule_t *output_rule = {0};
+  char output_string_rule[80] = {0}; // 80 bytes is more then enough for one rule.
+
   output[0] = 0; // Prepare output for strcat.
   while (strlen(input_string_rule = strsep(&input, "\n")) > 0) {
     if ((output_rule = parse_rule_from_string(input_string_rule)) == NULL) {
       printf("Failed loading rule table: Invalid rule format.\n");
       return -1;
     }
-    sprintf(output_string_rule, "%s %u %u %u %u %u %u %u %u %u %u",
+    sprintf(output_string_rule, "%s %u %u %u %u %u %u %u %u %u %u\n",
         output_rule->rule_name,
         output_rule->direction,
         output_rule->src_ip,
@@ -410,6 +425,9 @@ ssize_t rules_user_format_to_kernel_format(char *input, char *output) {
         output_rule->dst_port,
         output_rule->ack,
         output_rule->action);
+
+    printf("output_string_rule: %s\n", output_string_rule);
+    printf("%s\n", temp);
     strcat(output, output_string_rule);
     free(output_rule);
   }

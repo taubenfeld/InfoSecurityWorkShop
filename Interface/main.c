@@ -39,8 +39,7 @@ int main(int argc, char **argv) {
     }
     // Print exactly the number of bytes we have read.
     // .* takes the length and add it before s.
-
-    rules_kernel_format_to_user_format(rules_kernel_space_format, rules_user_space_format);
+    length = rules_kernel_format_to_user_format(rules_kernel_space_format, rules_user_space_format);
     printf("%.*s", length, rules_user_space_format);
     close(driver_file_desc);
     return 0;

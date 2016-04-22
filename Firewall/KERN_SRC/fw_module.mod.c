@@ -25,7 +25,6 @@ __attribute__((section("__versions"))) = {
 	{ 0x12da5bb2, "__kmalloc" },
 	{ 0x5656eb99, "kmem_cache_alloc_trace" },
 	{ 0xf5f1d863, "kmalloc_caches" },
-	{ 0x6bc3fbc0, "__unregister_chrdev" },
 	{ 0x77cb5806, "device_destroy" },
 	{ 0xd29f8c93, "device_remove_file" },
 	{ 0x969391b7, "device_create_file" },
@@ -33,14 +32,15 @@ __attribute__((section("__versions"))) = {
 	{ 0x121a120e, "__register_chrdev" },
 	{ 0x2f287f0d, "copy_to_user" },
 	{ 0x61651be, "strcat" },
-	{ 0xf0fdf6cb, "__stack_chk_fail" },
 	{ 0x50eedeb8, "printk" },
+	{ 0xf0fdf6cb, "__stack_chk_fail" },
 	{ 0xd0d8621b, "strlen" },
 	{ 0x85df9b6c, "strsep" },
 	{ 0x37a0cba, "kfree" },
 	{ 0xf9e73082, "scnprintf" },
 	{ 0x42224298, "sscanf" },
 	{ 0xb4390f9a, "mcount" },
+	{ 0x6bc3fbc0, "__unregister_chrdev" },
 };
 
 static const char __module_depends[]
@@ -49,4 +49,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "9118DDF9DDFA1A629D6006D");
+MODULE_INFO(srcversion, "7C91CF86605B953F39FE1DB");
