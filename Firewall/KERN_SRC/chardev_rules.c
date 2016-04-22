@@ -12,6 +12,10 @@ static rule_t rules_table[MAX_RULES];
 static int PORT_1023 = 1023; // All ports greater than 1023 should be treated equally.
 static int PORT_ANY_NUMBER = 1025;
 
+int firewall_rule_checking_status;
+#define STATUS_NOT_ACTIVE (0)
+#define STATUS_ACTIVE (1)
+
 static int IP_ANY = 0;
 
 int rules_device_major_number;
@@ -124,6 +128,41 @@ ssize_t show_rules_size(struct device *dev,struct device_attribute *attr, char *
 static DEVICE_ATTR(rules_size, S_IROTH, show_rules_size, NULL);
 
 
+/*
+ * Displays the firewall status.
+ */
+ssize_t show_rules_checking_status(struct device *dev,struct device_attribute *attr, char *buf) {
+  return scnprintf(buf, sizeof(int), "%u\n", firewall_rule_checking_status);
+}
+
+/*
+ * Sysfs activate/deactivate rules function.
+ */
+ssize_t activate_rules_checking(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
+  unsigned int action;
+  int returnValue;
+  printk(KERN_INFO " ------------ In activate.\n.");
+  if((returnValue = sscanf(buf, "%u", &action)) == 1) {
+    if (action == STATUS_NOT_ACTIVE || action == STATUS_ACTIVE) {
+      printk(KERN_INFO " ------------ changing status.\n.");
+      firewall_rule_checking_status = action;
+      return strnlen(buf, count);
+    }
+    else {
+      return EINVAL;
+    }
+  }
+  printk(KERN_INFO " ------------ Done.\n.");
+  return returnValue;
+}
+
+/*
+ * Register attribute for firewall activation.
+ * TODO: verify that NULL is appropriate.
+ */
+static DEVICE_ATTR(active, S_IRWXO, show_rules_checking_status, activate_rules_checking);
+
+
 /***************************************************************************************************
  * Registration methods
  **************************************************************************************************/
@@ -165,10 +204,25 @@ int register_rules_driver(struct class* fw_sysfs_class) {
     printk(KERN_INFO "Failed to create rules size attribute.\n.");
     return -1;
   }
+
+  // Create sysfs file attributes .
+  if(device_create_file(rules_device_sysfs_device,
+      (const struct device_attribute*) &dev_attr_active.attr)) {
+    device_remove_file(
+        rules_device_sysfs_device, (const struct device_attribute *)&dev_attr_rules_size.attr);
+    device_remove_file(rules_device_sysfs_device,
+        (const struct device_attribute *)&dev_attr_rules_load_store.attr);
+    device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));
+    unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    printk(KERN_INFO "Failed to create rules size attribute.\n.");
+    return -1;
+  }
   return 0;
 }
 
 int remove_rules_device(struct class* fw_sysfs_class) {
+  device_remove_file(
+      rules_device_sysfs_device, (const struct device_attribute *)&dev_attr_active.attr);
   device_remove_file(
       rules_device_sysfs_device, (const struct device_attribute *)&dev_attr_rules_size.attr);
   device_remove_file(

@@ -32,10 +32,11 @@ __attribute__((section("__versions"))) = {
 	{ 0x121a120e, "__register_chrdev" },
 	{ 0x2f287f0d, "copy_to_user" },
 	{ 0x61651be, "strcat" },
-	{ 0x50eedeb8, "printk" },
 	{ 0xf0fdf6cb, "__stack_chk_fail" },
 	{ 0xd0d8621b, "strlen" },
 	{ 0x85df9b6c, "strsep" },
+	{ 0x738803e6, "strnlen" },
+	{ 0x50eedeb8, "printk" },
 	{ 0x37a0cba, "kfree" },
 	{ 0xf9e73082, "scnprintf" },
 	{ 0x42224298, "sscanf" },
@@ -49,4 +50,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "7C91CF86605B953F39FE1DB");
+MODULE_INFO(srcversion, "BD205A9BCFFF43D0CFCB508");
