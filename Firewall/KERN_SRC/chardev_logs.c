@@ -22,6 +22,7 @@ const int const SIZE_OF_LOG_FIELD_BUFFER = 20;
 // TODO: Change it to the actual size.
 const int const NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG = 9;
 
+
 /***************************************************************************************************
  * List handling methods.
  **************************************************************************************************/

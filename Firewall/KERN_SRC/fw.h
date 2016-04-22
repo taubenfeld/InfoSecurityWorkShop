@@ -66,6 +66,7 @@ typedef enum {
 	DIRECTION_ANY 	= DIRECTION_IN | DIRECTION_OUT,
 } direction_t;
 
+int NUMBER_OF_FIELDS_IN_RULE = (11);
 // rule base
 typedef struct {
 	char rule_name[20];				// names will be no longer than 20 chars
