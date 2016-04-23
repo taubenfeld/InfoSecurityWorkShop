@@ -18,36 +18,19 @@ static const struct modversion_info ____versions[]
 __used
 __attribute__((section("__versions"))) = {
 	{ 0x2eae046e, "module_layout" },
+	{ 0xa55d174, "__class_create" },
+	{ 0x7d93eaac, "remove_rules_device" },
+	{ 0xaf243a97, "class_destroy" },
 	{ 0xa4f1a10f, "nf_unregister_hook" },
 	{ 0xa90dd060, "nf_register_hook" },
-	{ 0xaf243a97, "class_destroy" },
-	{ 0xa55d174, "__class_create" },
-	{ 0x12da5bb2, "__kmalloc" },
-	{ 0x5656eb99, "kmem_cache_alloc_trace" },
-	{ 0xf5f1d863, "kmalloc_caches" },
-	{ 0x77cb5806, "device_destroy" },
-	{ 0xd29f8c93, "device_remove_file" },
-	{ 0x969391b7, "device_create_file" },
-	{ 0xb0f2df0b, "device_create" },
-	{ 0x121a120e, "__register_chrdev" },
-	{ 0x2f287f0d, "copy_to_user" },
-	{ 0x61651be, "strcat" },
-	{ 0xf0fdf6cb, "__stack_chk_fail" },
-	{ 0xd0d8621b, "strlen" },
-	{ 0x85df9b6c, "strsep" },
-	{ 0x738803e6, "strnlen" },
 	{ 0x50eedeb8, "printk" },
-	{ 0x37a0cba, "kfree" },
-	{ 0xf9e73082, "scnprintf" },
-	{ 0x42224298, "sscanf" },
 	{ 0xb4390f9a, "mcount" },
-	{ 0x6bc3fbc0, "__unregister_chrdev" },
 };
 
 static const char __module_depends[]
 __used
 __attribute__((section(".modinfo"))) =
-"depends=";
+"depends=fw";
 
 
-MODULE_INFO(srcversion, "5D84825D66BC274625E1D9D");
+MODULE_INFO(srcversion, "52E3B45C64A6D6DAC9A4574");

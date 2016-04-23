@@ -1,17 +1,12 @@
-#include "fw.h"
-#include "chardev_rules.c"
-#include "chardev_info.c"
-#include "packets_handeling.c"
-#include "chardev_logs.c"
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Amir Taubenfeld");
+#include "fw_module.h"
 
 // Netfilter stuff.
 static struct nf_hook_ops pre_hook_struct;
 static struct nf_hook_ops post_routing_hook_struct;
-
 static struct class* sysfs_class = NULL;
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Amir Taubenfeld");
 
 /***************************************************************************************************
  * Netfilter hooks.
@@ -21,14 +16,12 @@ static struct class* sysfs_class = NULL;
  * Function that will be hooked.
  * This function will be called by netfilter for forwarded packets.
  */
-unsigned int  pre_routing_hook(unsigned int hooknum, struct sk_buff *skb,
+unsigned int pre_routing_hook(unsigned int hooknum, struct sk_buff *skb,
     const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *)) {
   if (verify_packet(skb, hooknum) == NF_ACCEPT) {
-    printk(KERN_INFO "*** packet passed ***\n");
     number_of_passed_packets++;
     return NF_ACCEPT;
   } else {
-    printk(KERN_INFO "*** packet blocked ***\n");
     number_of_blocked_packets++;
     return NF_DROP;
   }
@@ -38,14 +31,12 @@ unsigned int  pre_routing_hook(unsigned int hooknum, struct sk_buff *skb,
  * Function that will be hooked.
  * This function will be called by netfilter for packets that passed.
  */
-unsigned int  post_routing_hook(unsigned int hooknum, struct sk_buff *skb,
+unsigned int post_routing_hook(unsigned int hooknum, struct sk_buff *skb,
     const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *)) {
   if (verify_packet(skb, hooknum) == NF_ACCEPT) {
-    printk(KERN_INFO "*** packet passed ***\n");
     number_of_passed_packets++;
     return NF_ACCEPT;
   } else {
-    printk(KERN_INFO "*** packet blocked ***\n");
     number_of_blocked_packets++;
     return NF_DROP;
   }
@@ -57,7 +48,7 @@ unsigned int  post_routing_hook(unsigned int hooknum, struct sk_buff *skb,
  **************************************************************************************************/
 
 
-int register_drivers(void) {
+static int register_drivers(void) {
   sysfs_class = class_create(THIS_MODULE, "fw_class");
   if(IS_ERR(sysfs_class)) {
     return -1;
@@ -81,7 +72,7 @@ int register_drivers(void) {
   return 1;
 }
 
-int register_hooks(void) {
+static int register_hooks(void) {
   // Register hook that disables packet forwarding.
   pre_hook_struct.hook = pre_routing_hook;  // Hook our function.
   pre_hook_struct.hooknum = NF_INET_PRE_ROUTING;

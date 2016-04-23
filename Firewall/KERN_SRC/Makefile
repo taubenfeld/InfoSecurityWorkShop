@@ -1,5 +1,7 @@
 
-obj-m		:= fw_module.o 
+obj-m		:= fw.o 
+fw-objs 	+= fw_module.o chardev_logs.o chardev_info.o chardev_rules.o packets_handeling.o
+
 KERN_SRC	:= /lib/modules/$(shell uname -r)/build/
 PWD			:= $(shell pwd)
 

@@ -1,11 +1,5 @@
 
-#include "fw.h"
-
-/**
- * The basic device that we wrote on EX2. Might remove this later on.
- */
-
-char *INFO_DEVICE_NAME = "fw_info";
+#include "chardev_info.h"
 
 int info_device_major_number;
 struct device* info_device_sysfs_device = NULL;
@@ -13,11 +7,7 @@ struct file_operations info_device_fops = {
   .owner = THIS_MODULE
 };
 
-/* packet counters. TODO: create locks */
-static int number_of_passed_packets = 0;
-static int number_of_blocked_packets = 0;
-
-static char output_template[] =
+char output_template[] =
     "Firewall Packets Summary:\n"
     "Number of accepted packets: %d\n"
     "Number of dropped packets: %d\n"

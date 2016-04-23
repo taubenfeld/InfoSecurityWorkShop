@@ -1,12 +1,11 @@
-#include "fw.h"
 
-log_row_t logs_list;
+#include "chardev_logs.h"
 
-int logs_size = 0;
-
-char *LOGS_DEVICE_NAME = "fw_logs";
 int logs_device_major_number;
 struct device* logs_device_sysfs_device = NULL;
+
+log_row_t logs_list;
+int logs_size = 0;
 
 /*
  * Variables that uses for the read operation.
@@ -14,14 +13,9 @@ struct device* logs_device_sysfs_device = NULL;
 char *read_buffer;
 int remaining_number_of_bytes_to_read;
 char *pointer_to_current_location_in_read_buffer;
-/*
- * The size of each field in the log entry when printing it.
- */
-const int const SIZE_OF_LOG_FIELD_BUFFER = 20;
 
-// TODO: Change it to the actual size.
-const int const NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG = 10;
-
+int number_of_passed_packets = 0;
+int number_of_blocked_packets = 0;
 
 /***************************************************************************************************
  * List handling methods.
@@ -82,12 +76,11 @@ void clear_logs_list(void) {
 
 void get_logs(char *buff) {
   log_row_t *cur_entry;
-  // SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG + 1.
-  char temp_str_log[201] = {0};
-  buff[0] = 0; // Prepare buff for strcat.
+  char temp_str_log[LOG_SIZE_AS_STRING + 1] = {0};
+
   // Start to read from where we stopped last time (cur_entry_in_read).
   list_for_each_entry(cur_entry, &(logs_list.list), list) {
-    scnprintf(temp_str_log, SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG + 1,
+    scnprintf(temp_str_log, LOG_SIZE_AS_STRING + 1,
         "%-19.lu %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.d %-19.u\n",
         cur_entry->timestamp,
         cur_entry->protocol,
@@ -111,7 +104,7 @@ void init_logs_list(void) {
   INIT_LIST_HEAD(&logs_list.list);
   logs_size = 0;
 
-  /* adding elements to mylist */
+  // TODO remove this.
   for(i=0; i<3; ++i) {
     add_log(1000,i,i,i,i,i,i,i,i);
     add_log(1000,i,i,i,i,i,i,i,i);
@@ -131,15 +124,24 @@ void init_logs_list(void) {
  * In this implementation we prepare the buffer that should be send to the user.
  */
 int open_log_device(struct inode *_inode, struct file *_file) {
-  printk(KERN_INFO "Opening logs file\n");
-  if (get_logs_size() > 0) {
-    remaining_number_of_bytes_to_read =
-        get_logs_size() * SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG + 1;
-    // Prepare all the logs that should be written.
-    read_buffer = kcalloc(remaining_number_of_bytes_to_read, 1, GFP_KERNEL);
-    pointer_to_current_location_in_read_buffer = read_buffer;
-    get_logs(read_buffer); // Fill the buffer with the logs.
-  }
+
+  remaining_number_of_bytes_to_read =
+      (get_logs_size() + 1) * LOG_SIZE_AS_STRING + 1;
+
+  // Prepare all the logs that should be written.
+  // TODO check calloc.
+  read_buffer = kcalloc(remaining_number_of_bytes_to_read, 1, GFP_KERNEL);
+  pointer_to_current_location_in_read_buffer = read_buffer;
+
+  // Prepare the title.
+  scnprintf(read_buffer, LOG_SIZE_AS_STRING + 1,
+      "%-19.s %-19.s %-19.s %-19.s %-19.s %-19.s %-19.s %-19.s %-19.s %-19.s\n",
+      "timestamp", "protocol", "action", "hooknum", "src_ip", "dst_ip", "src_port", "dst_port",
+      "reason", "count");
+
+  // Fill the buffer with the logs. Will concatenate the logs after the title.
+  get_logs(read_buffer);
+
   return 0;
 }
 

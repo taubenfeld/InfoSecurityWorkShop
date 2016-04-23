@@ -1,2 +1,3 @@
-loopback any 10.0.1.1 10.0.1.3 any any any any drop
+loopback any any 10.0.1.3 any any any any drop
+loopback any any 10.0.2.3 any >1023 any any drop
 default any any any any any any any accept

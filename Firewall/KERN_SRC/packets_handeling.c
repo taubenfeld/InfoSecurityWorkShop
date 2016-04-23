@@ -1,5 +1,4 @@
-#include "fw.h"
-
+#include "packets_handeling.h"
 
 int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule) {
 
@@ -55,54 +54,62 @@ int ips_match(int rule_ip, int table_rule_ip) {
  */
 int match_rule_aginst_table_rule(rule_t rule, rule_t table_rule) {
   if (!(rule.direction & table_rule.direction)) {
-    printk(KERN_INFO "%s\n", "Direction don't match");
+    //printk(KERN_INFO "%s\n", "Direction don't match");
     return 0;
   }
   if (!(rule.protocol & table_rule.protocol)) {
-    printk(KERN_INFO "%s\n", "protocol don't match");
+    //printk(KERN_INFO "%s\n", "protocol don't match");
     return 0;
   }
   if (!(rule.ack & table_rule.ack)) {
-    printk(KERN_INFO "%s\n", "ack don't match");
+    //printk(KERN_INFO "%s\n", "ack don't match");
     return 0;
   }
   if (!(ports_match(rule.src_port, table_rule.src_port))) {
-    printk(KERN_INFO "%s\n", "src_port don't match");
+    //printk(KERN_INFO "%s\n", "src_port don't match");
     return 0;
   }
   if (!(ports_match(rule.dst_port, table_rule.dst_port))) {
-    printk(KERN_INFO "%s\n", "dst_port don't match");
+    //printk(KERN_INFO "%s\n", "dst_port don't match");
     return 0;
   }
   if (!(ips_match(rule.src_ip, table_rule.src_ip))) {
-    printk(KERN_INFO "%s\n", "src_ip don't match");
+    //printk(KERN_INFO "%s\n", "src_ip don't match");
     return 0;
   }
   if (!(ips_match(rule.dst_ip, table_rule.dst_ip))) {
-    printk(KERN_INFO "%s\n", "dst_ip don't match");
+    //printk(KERN_INFO "%s\n", "dst_ip don't match");
     return 0;
   }
-  printk(KERN_INFO "%s\n", "packet matched all fields.");
+  //printk(KERN_INFO "%s\n", "packet matched all fields.");
   return 1;
 }
 
 int verify_packet(struct sk_buff *skb, int hooknum) {
   int i;
   int return_value;
-  rule_t rule;
+  int action = NF_ACCEPT;
+  rule_t new_rule;
   rule_t table_rule;
-  // DROP packet even before the comapration to the rules table.
-  if ((return_value = create_rule_from_packet(skb, &rule)) < 0) {
+  // DROP packet even before we check the rules table.
+  if ((return_value = create_rule_from_packet(skb, &new_rule)) < 0) {
     printk(KERN_INFO "%s %d\n", "dropped before checking the table.", return_value);
-    return NF_DROP;
+    action = NF_DROP;
   }
-  rule.direction = (hooknum == NF_INET_PRE_ROUTING) ? DIRECTION_IN : DIRECTION_OUT;
-  for (i = 0; i < number_of_rules; i++) {
-    table_rule = rules_table[i];
-    if (match_rule_aginst_table_rule(rule, table_rule)) {
-      return table_rule.action;
+  else {
+    // TODO in out hosts
+    new_rule.direction = (hooknum == NF_INET_PRE_ROUTING) ? DIRECTION_IN : DIRECTION_OUT;
+    for (i = 0; i < number_of_rules; i++) {
+      table_rule = rules_table[i];
+      if (match_rule_aginst_table_rule(new_rule, table_rule)) {
+        action = table_rule.action;
+      }
     }
   }
-  return NF_ACCEPT;
+  // TODO add reason.
+//  add_log(
+//      skb->tstamp.tv64, new_rule.protocol, action, hooknum, new_rule.src_ip, new_rule.dst_ip,
+//      new_rule.src_port, new_rule.dst_port, REASON_FW_INACTIVE);
+  return action;
 }
 

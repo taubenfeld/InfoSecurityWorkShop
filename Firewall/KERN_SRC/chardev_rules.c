@@ -1,34 +1,18 @@
 
-#include <linux/string.h>
-//#include <linux/list.h>
-
-#include "fw.h"
-
-char *RULES_DEVICE_NAME = "fw_rules";
-
-static unsigned short number_of_rules;
-static rule_t rules_table[MAX_RULES];
-
-static int PORT_1023 = 1023; // All ports greater than 1023 should be treated equally.
-static int PORT_ANY_NUMBER = 1025;
-
-int firewall_rule_checking_status;
-#define STATUS_NOT_ACTIVE (0)
-#define STATUS_ACTIVE (1)
-
-static int IP_ANY = 0;
+#include "chardev_rules.h"
 
 int rules_device_major_number;
 struct device* rules_device_sysfs_device = NULL;
 struct file_operations rules_device_fops = {
   .owner = THIS_MODULE
 };
-
+int firewall_rule_checking_status;
+unsigned short number_of_rules;
+rule_t rules_table[MAX_RULES];
 
 /***************************************************************************************************
  * Functions for sysfs attributes
  **************************************************************************************************/
-
 
 ssize_t get_rules(struct device *dev,struct device_attribute *attr, char *buf) {
   rule_t rule;
@@ -53,7 +37,6 @@ ssize_t get_rules(struct device *dev,struct device_attribute *attr, char *buf) {
   }
   return strlen(buf);
 }
-
 
 /*
  * Sysfs store implementation.
@@ -114,13 +97,13 @@ ssize_t set_rules(
 
 static DEVICE_ATTR(rules_load_store, S_IRWXO , get_rules, set_rules);
 
-
 /*
  * Sysfs show rules size implementation.
  */
 ssize_t show_rules_size(struct device *dev,struct device_attribute *attr, char *buf) {
   return scnprintf(buf, sizeof(int), "%d\n", number_of_rules);
 }
+
 /*
  * Register attribute for display size.
  * TODO: verify that NULL is appropriate.
