@@ -109,7 +109,7 @@ ssize_t set_rules(
     }
   }
   printk(KERN_INFO "Done loading rules.");
-  return 1;
+  return strnlen(buf, count);
 }
 
 static DEVICE_ATTR(rules_load_store, S_IRWXO , get_rules, set_rules);

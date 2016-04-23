@@ -20,7 +20,7 @@ char *pointer_to_current_location_in_read_buffer;
 const int const SIZE_OF_LOG_FIELD_BUFFER = 20;
 
 // TODO: Change it to the actual size.
-const int const NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG = 9;
+const int const NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG = 10;
 
 
 /***************************************************************************************************
@@ -32,7 +32,27 @@ const int const NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG = 9;
 void add_log(unsigned long timestamp, unsigned char protocol, unsigned char action,
     unsigned char hooknum, __be32 src_ip, __be32 dst_ip, __be16 src_port, __be16 dst_port,
     reason_t reason) {
-  log_row_t *new = kmalloc(sizeof(log_row_t), GFP_KERNEL);
+  log_row_t *cur_entry;
+  log_row_t *new;
+
+  // Check if this look alreay exists.
+  list_for_each_entry(cur_entry, &(logs_list.list), list) {
+    if (cur_entry->protocol == protocol
+        && cur_entry->action == action
+        && cur_entry->hooknum == hooknum
+        && cur_entry->src_ip == src_ip
+        && cur_entry->dst_ip == dst_ip
+        && cur_entry->src_port == src_port
+        && cur_entry->dst_port == dst_port
+        && cur_entry->reason == reason) {
+      // We found an equal log, increment its count field.
+      cur_entry->count++;
+      return;
+    }
+  }
+
+  // This log doesn't exists in the list, create a new node.
+  new = kmalloc(sizeof(log_row_t), GFP_KERNEL);
   INIT_LIST_HEAD(&(new->list));
   new->timestamp = timestamp;
   new->protocol = protocol;
@@ -43,11 +63,11 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
   new->src_port = src_port;
   new->dst_port = dst_port;
   new->reason = reason;
+  new->count = 1;
   list_add_tail(&(new->list), &logs_list.list);
   logs_size++;
 }
 
-// TODO: Verify that the first node is not removed.
 void clear_logs_list(void) {
   log_row_t *cur_entry, *temp;
   if (list_empty(&(logs_list.list))) { // List is empty nothing to do.
@@ -63,12 +83,12 @@ void clear_logs_list(void) {
 void get_logs(char *buff) {
   log_row_t *cur_entry;
   // SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG + 1.
-  char temp_str_log[181] = {0};
+  char temp_str_log[201] = {0};
   buff[0] = 0; // Prepare buff for strcat.
   // Start to read from where we stopped last time (cur_entry_in_read).
   list_for_each_entry(cur_entry, &(logs_list.list), list) {
-    scnprintf(temp_str_log, 181,
-        "%-19.lu %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.d\n",
+    scnprintf(temp_str_log, SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG + 1,
+        "%-19.lu %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.d %-19.u\n",
         cur_entry->timestamp,
         cur_entry->protocol,
         cur_entry->action,
@@ -77,7 +97,8 @@ void get_logs(char *buff) {
         cur_entry->dst_ip,
         cur_entry->src_port,
         cur_entry->dst_port,
-        cur_entry->reason);
+        cur_entry->reason,
+        cur_entry->count);
     strcat(buff, temp_str_log);
   }
 }
@@ -93,7 +114,9 @@ void init_logs_list(void) {
   /* adding elements to mylist */
   for(i=0; i<3; ++i) {
     add_log(1000,i,i,i,i,i,i,i,i);
+    add_log(1000,i,i,i,i,i,i,i,i);
   }
+  add_log(1000,0,0,0,0,0,0,0,0);
 }
 
 /***************************************************************************************************
