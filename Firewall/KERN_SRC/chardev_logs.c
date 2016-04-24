@@ -18,7 +18,6 @@ char *pointer_to_current_location_in_read_buffer;
  * List handling methods.
  **************************************************************************************************/
 
-
 // TODO: Merge logs.
 void add_log(unsigned long timestamp, unsigned char protocol, unsigned char action,
     unsigned char hooknum, __be32 src_ip, __be32 dst_ip, __be16 src_port, __be16 dst_port,
@@ -57,7 +56,7 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
   new->dst_port = dst_port;
   new->reason = reason;
   new->count = 1;
-  list_add(&(new->list), &logs_list.list);
+  list_add_tail(&(new->list), &logs_list.list);
   logs_size++;
   printk(KERN_INFO "----------------------  Creating a new log.\n");
 }
@@ -164,7 +163,7 @@ int release_log_device(struct inode *inode, struct file *file) {
 }
 
 /*
- * // Our 'file_operations' struct with declerations on our functions
+ * File operations for log device.
  */
 static struct file_operations logs_device_fops = {
   .owner = THIS_MODULE,
@@ -181,7 +180,7 @@ static struct file_operations logs_device_fops = {
  * Sysfs show logs size implementation.
  */
 ssize_t sysfs_show_logs_size(struct device *dev,struct device_attribute *attr, char *buf) {
-  return scnprintf(buf, sizeof(int), "%d\n", get_logs_size());
+  return scnprintf(buf, sizeof(int) + 1 , "%d\n", get_logs_size());
 }
 /*
  * Register attribute for display size.
@@ -206,7 +205,6 @@ ssize_t sysfs_clear_logs(
 
 /*
  * Register ops.
- * TODO: verify that NULL is appropriate.
  */
 static DEVICE_ATTR(log_clear, S_IWOTH , NULL, sysfs_clear_logs);
 

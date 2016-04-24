@@ -1,7 +1,6 @@
 #include "packets_handeling.h"
 
 int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule) {
-
   struct iphdr *iph;
   struct udphdr *udph;
   struct tcphdr *tcph;
@@ -19,11 +18,9 @@ int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule) {
     new_rule->dst_port = ntohs(tcph->dest);
     new_rule->ack = tcph->ack ? ACK_YES : ACK_NO;
     // Check X_MAS_PACKET
-//    if (tcph->fin && tcph->urg && tcph->psh) {
-//      printk(KERN_INFO "%s ", "X_MAS_PACKET");
-//      //log_entry(&input, NULL, REASON_XMAS_PACKET, hooknum, 0);
-//      return -1;
-//    }
+    if (tcph->fin && tcph->urg && tcph->psh) {
+      return REASON_XMAS_PACKET;
+    }
     break;
   case PROT_UDP:
     udph = udp_hdr(skb);
@@ -87,27 +84,33 @@ int match_rule_aginst_table_rule(rule_t rule, rule_t table_rule) {
 
 int verify_packet(struct sk_buff *skb, int hooknum) {
   int i;
-  int return_value;
-  int action = NF_ACCEPT;
   rule_t new_rule;
   rule_t table_rule;
-  // DROP packet even before we check the rules table.
-  if ((return_value = create_rule_from_packet(skb, &new_rule)) < 0) {
-    printk(KERN_INFO "%s %d\n", "dropped before checking the table.", return_value);
+
+  int action = NF_ACCEPT;
+  reason_t reason = REASON_NO_MATCHING_RULE;
+
+  if (create_rule_from_packet(skb, &new_rule) < 0) {
     action = NF_DROP;
+    reason = REASON_XMAS_PACKET;
   }
-  else {
-    // TODO in out hosts
+  if (firewall_rule_checking_status == STATUS_NOT_ACTIVE) {
+    reason = REASON_FW_INACTIVE;
+    action = NF_ACCEPT;
+  }
+  else { // Check for a matching rule. TODO(amirt): In and out for the hosts.
     new_rule.direction = (hooknum == NF_INET_PRE_ROUTING) ? DIRECTION_IN : DIRECTION_OUT;
     for (i = 0; i < number_of_rules; i++) {
       table_rule = rules_table[i];
       if (match_rule_aginst_table_rule(new_rule, table_rule)) {
         action = table_rule.action;
+        reason = i;
+        break;
       }
     }
   }
   add_log(skb->tstamp.tv64, new_rule.protocol, action, hooknum,
-      new_rule.src_ip, new_rule.dst_ip, new_rule.src_port, new_rule.dst_port, REASON_FW_INACTIVE);
+      new_rule.src_ip, new_rule.dst_ip, new_rule.src_port, new_rule.dst_port, reason);
   return action;
 }
 
