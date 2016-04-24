@@ -3,6 +3,7 @@
 #define CHARDEV_LOGS_H_
 
 #include "fw.h"
+#include "linux/list.h"
 
 #define LOGS_DEVICE_NAME "fw_logs"
 
@@ -12,6 +13,8 @@
 #define SIZE_OF_LOG_FIELD_BUFFER 20
 #define NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG 10
 #define LOG_SIZE_AS_STRING SIZE_OF_LOG_FIELD_BUFFER * NUMBER_OF_FIELDS_TO_PRINT_IN_EACH_LOG
+
+extern int logs_size;
 
 /***************************************************************************************************
  * List handling methods.

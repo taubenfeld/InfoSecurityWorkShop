@@ -1,3 +1,3 @@
-main.d: ../main.c ../rules_parser.h
+main.d: ../main.c ../parser.h
 
-../rules_parser.h:
+../parser.h:

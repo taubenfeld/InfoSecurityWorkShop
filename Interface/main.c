@@ -8,19 +8,99 @@
 #include <linux/kernel.h>
 #include <string.h>
 #include <assert.h>
-#include "rules_parser.h"
+#include "parser.h"
 
-const int PAGE_SIZE = 4096;
+#define PAGE_SIZE (4096)
+#define RULES_DRIVER_PATH "/sys/class/fw_class/fw_rules/rules_load_store"
+#define LOG_DRIVER_PATH "/dev/fw_logs"
 
-static char RULES_DRIVER_PATH[] = "/sys/class/fw_class/fw_rules/rules_load_store";
+int show_rules() {
+  int driver_file_desc;
+  int length;
+  char rules_kernel_space_format[PAGE_SIZE + 1] = {0};
+  char rules_user_space_format[PAGE_SIZE * 10] = {0};
+
+  driver_file_desc = open(RULES_DRIVER_PATH, O_RDONLY);
+  if(driver_file_desc < 0) {
+    printf("Unable to open driver.\n");
+    return 1;
+  }
+  length = read(driver_file_desc, &rules_kernel_space_format, PAGE_SIZE);
+  if (length < 0) {
+    printf("Error while reading from driver.");
+  }
+  // Print exactly the number of bytes we have read.
+  // .* takes the length and add it before s.
+  length = rules_kernel_format_to_user_format(rules_kernel_space_format, rules_user_space_format);
+  printf("%.*s", length, rules_user_space_format);
+  close(driver_file_desc);
+  return 0;
+}
+
+int load_rules(const char *rules_file_path) {
+  FILE *user_file;
+  int driver_file_desc;
+  int length;
+  int return_status = 0;
+  char rules_kernel_space_format[PAGE_SIZE + 1] = {0};
+  char rules_user_space_format[PAGE_SIZE * 10 + 1] = {0};
+
+  user_file = fopen(rules_file_path, "r");
+  if(user_file == NULL) {
+    printf("Unable to open logs driver: %s.\n", strerror(errno));
+    return 1;
+  }
+
+  length = fread(rules_user_space_format, 1, PAGE_SIZE * 10 , user_file);
+  fclose(user_file);
+  if (length < 0) {
+    printf("Error while reading rules file\n.");
+  }
+  else if (length > PAGE_SIZE) {
+    printf("Rules size is too big\n.");
+  }
+  else {
+    if (rules_user_format_to_kernel_format(
+        rules_user_space_format, rules_kernel_space_format) < 0) {
+      printf("Invalid rules format.\n");
+    };
+    driver_file_desc = open(RULES_DRIVER_PATH, O_WRONLY);
+    if(driver_file_desc < 0) {
+      printf("Unable to open logs driver: %s.\n", strerror(errno));
+      return 1;
+    }
+    return_status = write(driver_file_desc, rules_kernel_space_format, length);
+  }
+  close(driver_file_desc);
+  return return_status;
+}
+
+int show_log() {
+  int driver_file_desc;
+  int length;
+  char logs_kernel_space_format[PAGE_SIZE + 1] = {0};
+  char logs_user_space_format[PAGE_SIZE * 10] = {0};
+  char remainder[MAX_USER_FORMAT_LOG_LENGTH] = {0};
+  // Print the title.
+  printf("%-30s %-20s %-20s %-10s %-10s %-10s %-10s %-10s %-30s %-10s\n",
+      "timestamp", "src_ip", "dst_ip", "src_port", "dst_port", "protocol", "hooknum", "action",
+      "reason", "count");
+
+  driver_file_desc = open(LOG_DRIVER_PATH, O_RDONLY);
+  if(driver_file_desc < 0) {
+    printf("Unable to open logs driver: %s.\n", strerror(errno));
+    return -1;
+  }
+  while ((length =
+      read(driver_file_desc, logs_kernel_space_format, PAGE_SIZE)) > 0) {
+    logs_kernel_format_to_user_format(logs_kernel_space_format, logs_user_space_format, remainder);
+    printf("%s", (logs_user_space_format));
+  }
+  close(driver_file_desc);
+  return length;
+}
 
 int main(int argc, char **argv) {
-	int driver_file_desc;
-	FILE *user_file_desc;
-	int length;
-	int return_status = 0;
-	char rules_user_space_format[9000] = {0};
-	char rules_kernel_space_format[4096] = {0};
 
 	if(argc < 2) {
 	  printf("ERROR: User must specify argument.\n");
@@ -28,21 +108,7 @@ int main(int argc, char **argv) {
 	}
 
   if (strcmp(argv[1], "show_rules") == 0) {
-    driver_file_desc = open(RULES_DRIVER_PATH, O_RDONLY);
-    if(driver_file_desc < 0) {
-      printf("Unable to open driver.\n");
-      return 1;
-    }
-    length = read(driver_file_desc, &rules_kernel_space_format, sizeof(rules_kernel_space_format));
-    if (length < 0) {
-      printf("Error while reading from driver.");
-    }
-    // Print exactly the number of bytes we have read.
-    // .* takes the length and add it before s.
-    length = rules_kernel_format_to_user_format(rules_kernel_space_format, rules_user_space_format);
-    printf("%.*s", length, rules_user_space_format);
-    close(driver_file_desc);
-    return 0;
+    return show_rules();
   }
 
   if (strcmp(argv[1], "load_rules") == 0) {
@@ -50,40 +116,12 @@ int main(int argc, char **argv) {
       printf("ERROR: User must specify path to rules file.\n");
       return -1;
     }
+    return load_rules(argv[2]);
+  }
 
-    user_file_desc = fopen(argv[2], "r");
-    if(user_file_desc == NULL) {
-      printf("Unable to open rules file.\n");
-      return 1;
-    }
-
-    length = fread(rules_user_space_format, 1, sizeof(rules_user_space_format), user_file_desc);
-    fclose(user_file_desc);
-    if (length < 0) {
-      printf("Error while reading rules file\n.");
-    }
-    else if (length > PAGE_SIZE) {
-      printf("Rules size is too big\n.");
-    }
-    else {
-      if (rules_user_format_to_kernel_format(
-          rules_user_space_format, rules_kernel_space_format) < 0) {
-        printf("Invalid rules format.\n");
-      };
-
-      driver_file_desc = open(RULES_DRIVER_PATH, O_WRONLY);
-      if(driver_file_desc < 0) {
-        printf("Unable to open driver.\n");
-        return 1;
-      }
-
-      return_status = write(driver_file_desc, rules_kernel_space_format, length);
-    }
-
-	  close(driver_file_desc);
-	  return return_status;
+  if (strcmp(argv[1], "show_log") == 0) {
+    return show_log();
   }
   printf("ERROR: Unrecognized command.\n");
   return -1;
 }
-

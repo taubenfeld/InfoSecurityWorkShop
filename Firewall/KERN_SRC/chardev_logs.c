@@ -14,9 +14,6 @@ char *read_buffer;
 int remaining_number_of_bytes_to_read;
 char *pointer_to_current_location_in_read_buffer;
 
-int number_of_passed_packets = 0;
-int number_of_blocked_packets = 0;
-
 /***************************************************************************************************
  * List handling methods.
  **************************************************************************************************/
@@ -29,7 +26,7 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
   log_row_t *cur_entry;
   log_row_t *new;
 
-  // Check if this look alreay exists.
+  // Check if this log already exists.
   list_for_each_entry(cur_entry, &(logs_list.list), list) {
     if (cur_entry->protocol == protocol
         && cur_entry->action == action
@@ -41,12 +38,14 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
         && cur_entry->reason == reason) {
       // We found an equal log, increment its count field.
       cur_entry->count++;
+      printk(KERN_INFO "----------------------  Found log, incrementing its count.\n");
       return;
     }
   }
 
   // This log doesn't exists in the list, create a new node.
-  new = kmalloc(sizeof(log_row_t), GFP_KERNEL);
+  // Note that it is important to use GFP_ATOMIC due to concurrency considerations.
+  new = kmalloc(sizeof(log_row_t), GFP_ATOMIC);
   INIT_LIST_HEAD(&(new->list));
   new->timestamp = timestamp;
   new->protocol = protocol;
@@ -58,8 +57,9 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
   new->dst_port = dst_port;
   new->reason = reason;
   new->count = 1;
-  list_add_tail(&(new->list), &logs_list.list);
+  list_add(&(new->list), &logs_list.list);
   logs_size++;
+  printk(KERN_INFO "----------------------  Creating a new log.\n");
 }
 
 void clear_logs_list(void) {
@@ -79,9 +79,11 @@ void get_logs(char *buff) {
   char temp_str_log[LOG_SIZE_AS_STRING + 1] = {0};
 
   // Start to read from where we stopped last time (cur_entry_in_read).
+  // Use this to align printing. Currently the align parsing is done only in userspace.
+  // "%-19.lu %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.d %-19.u\n",
   list_for_each_entry(cur_entry, &(logs_list.list), list) {
     scnprintf(temp_str_log, LOG_SIZE_AS_STRING + 1,
-        "%-19.lu %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.d %-19.u\n",
+        "%lu %u %u %u %u %u %u %u %d %u\n",
         cur_entry->timestamp,
         cur_entry->protocol,
         cur_entry->action,
@@ -100,22 +102,13 @@ int get_logs_size(void) {
 }
 
 void init_logs_list(void) {
-  int i;
   INIT_LIST_HEAD(&logs_list.list);
   logs_size = 0;
-
-  // TODO remove this.
-  for(i=0; i<3; ++i) {
-    add_log(1000,i,i,i,i,i,i,i,i);
-    add_log(1000,i,i,i,i,i,i,i,i);
-  }
-  add_log(1000,0,0,0,0,0,0,0,0);
 }
 
 /***************************************************************************************************
  * Driver file operations.
  **************************************************************************************************/
-
 
 /*
  * Our custom open function  for file_operations. Each time we open the device we initializing the
@@ -133,13 +126,7 @@ int open_log_device(struct inode *_inode, struct file *_file) {
   read_buffer = kcalloc(remaining_number_of_bytes_to_read, 1, GFP_KERNEL);
   pointer_to_current_location_in_read_buffer = read_buffer;
 
-  // Prepare the title.
-  scnprintf(read_buffer, LOG_SIZE_AS_STRING + 1,
-      "%-19.s %-19.s %-19.s %-19.s %-19.s %-19.s %-19.s %-19.s %-19.s %-19.s\n",
-      "timestamp", "protocol", "action", "hooknum", "src_ip", "dst_ip", "src_port", "dst_port",
-      "reason", "count");
-
-  // Fill the buffer with the logs. Will concatenate the logs after the title.
+  // Fill the buffer with the logs.
   get_logs(read_buffer);
 
   return 0;
@@ -206,7 +193,8 @@ static DEVICE_ATTR(log_size, S_IROTH, sysfs_show_logs_size, NULL);
 /*
  * Sysfs clear logs implementation.
  */
-ssize_t sysfs_clear_logs(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
+ssize_t sysfs_clear_logs(
+    struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
   char c;
   int returnValue;
   if((returnValue = sscanf(buf, "%c", &c)) == 1) {

@@ -5,18 +5,18 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../main.c \
-../rules_parser.c 
+../parser.c 
 
 O_SRCS += \
 ../main.o 
 
 OBJS += \
 ./main.o \
-./rules_parser.o 
+./parser.o 
 
 C_DEPS += \
 ./main.d \
-./rules_parser.d 
+./parser.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

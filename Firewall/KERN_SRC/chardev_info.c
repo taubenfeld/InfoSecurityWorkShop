@@ -7,6 +7,9 @@ struct file_operations info_device_fops = {
   .owner = THIS_MODULE
 };
 
+int number_of_passed_packets = 0;
+int number_of_blocked_packets = 0;
+
 char output_template[] =
     "Firewall Packets Summary:\n"
     "Number of accepted packets: %d\n"

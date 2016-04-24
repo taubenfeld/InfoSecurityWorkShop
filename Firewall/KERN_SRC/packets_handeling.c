@@ -106,10 +106,8 @@ int verify_packet(struct sk_buff *skb, int hooknum) {
       }
     }
   }
-  // TODO add reason.
-//  add_log(
-//      skb->tstamp.tv64, new_rule.protocol, action, hooknum, new_rule.src_ip, new_rule.dst_ip,
-//      new_rule.src_port, new_rule.dst_port, REASON_FW_INACTIVE);
+  add_log(skb->tstamp.tv64, new_rule.protocol, action, hooknum,
+      new_rule.src_ip, new_rule.dst_ip, new_rule.src_port, new_rule.dst_port, REASON_FW_INACTIVE);
   return action;
 }
 
