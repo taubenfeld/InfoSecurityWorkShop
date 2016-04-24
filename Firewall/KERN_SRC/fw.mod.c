@@ -37,6 +37,7 @@ __attribute__((section("__versions"))) = {
 	{ 0x738803e6, "strnlen" },
 	{ 0xf0fdf6cb, "__stack_chk_fail" },
 	{ 0x5656eb99, "kmem_cache_alloc_trace" },
+	{ 0x1d2e87c6, "do_gettimeofday" },
 	{ 0xa4f1a10f, "nf_unregister_hook" },
 	{ 0x37a0cba, "kfree" },
 	{ 0xf9e73082, "scnprintf" },
@@ -50,4 +51,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "4E9ECF0609341AB4E14FA80");
+MODULE_INFO(srcversion, "B26C836DCECEC505BDBB518");

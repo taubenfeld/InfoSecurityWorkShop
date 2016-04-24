@@ -2,8 +2,9 @@
 #ifndef CHARDEV_LOGS_H_
 #define CHARDEV_LOGS_H_
 
+#include <linux/time.h>
+#include <linux/list.h>
 #include "fw.h"
-#include "linux/list.h"
 
 /*
  * The size of each field in the log entry when printing it.

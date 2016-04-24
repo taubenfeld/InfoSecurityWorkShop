@@ -86,7 +86,6 @@ int verify_packet(struct sk_buff *skb, int hooknum) {
   int i;
   rule_t new_rule;
   rule_t table_rule;
-
   int action = NF_ACCEPT;
   reason_t reason = REASON_NO_MATCHING_RULE;
 
@@ -109,6 +108,7 @@ int verify_packet(struct sk_buff *skb, int hooknum) {
       }
     }
   }
+
   add_log(skb->tstamp.tv64, new_rule.protocol, action, hooknum,
       new_rule.src_ip, new_rule.dst_ip, new_rule.src_port, new_rule.dst_port, reason);
   return action;

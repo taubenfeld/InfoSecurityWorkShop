@@ -7,9 +7,6 @@ C_SRCS += \
 ../main.c \
 ../parser.c 
 
-O_SRCS += \
-../main.o 
-
 OBJS += \
 ./main.o \
 ./parser.o 

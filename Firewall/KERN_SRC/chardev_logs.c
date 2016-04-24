@@ -24,6 +24,9 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
   log_row_t *cur_entry;
   log_row_t *new;
 
+  struct timeval time;
+  do_gettimeofday(&time);
+
   // Check if this log already exists.
   list_for_each_entry(cur_entry, &(logs_list.list), list) {
     if (cur_entry->protocol == protocol
@@ -34,8 +37,9 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
         && cur_entry->src_port == src_port
         && cur_entry->dst_port == dst_port
         && cur_entry->reason == reason) {
-      // We found an equal log, increment its count field.
+      // We found an equal log, increment its count field and update its timestamp.
       cur_entry->count++;
+      cur_entry->timestamp = time.tv_sec;
       return;
     }
   }
@@ -49,7 +53,7 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
   }
 
   INIT_LIST_HEAD(&(new->list));
-  new->timestamp = timestamp;
+  new->timestamp = time.tv_sec;
   new->protocol = protocol;
   new->action = action;
   new->hooknum = hooknum;

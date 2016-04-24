@@ -4,19 +4,21 @@ source_/home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.o := /home/fw/link
 
 deps_/home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.o := \
   /home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.h \
-  /home/fw/link_workspace/Firewall/KERN_SRC/fw.h \
-  include/linux/kernel.h \
+  include/linux/time.h \
+    $(wildcard include/config/arch/uses/gettimeoffset.h) \
+  include/linux/types.h \
+    $(wildcard include/config/uid16.h) \
     $(wildcard include/config/lbdaf.h) \
-    $(wildcard include/config/preempt/voluntary.h) \
-    $(wildcard include/config/debug/atomic/sleep.h) \
-    $(wildcard include/config/prove/locking.h) \
-    $(wildcard include/config/ring/buffer.h) \
-    $(wildcard include/config/tracing.h) \
-    $(wildcard include/config/numa.h) \
-    $(wildcard include/config/compaction.h) \
-    $(wildcard include/config/ftrace/mcount/record.h) \
-  /usr/lib/gcc/i686-linux-gnu/4.6/include/stdarg.h \
-  include/linux/linkage.h \
+    $(wildcard include/config/arch/dma/addr/t/64bit.h) \
+    $(wildcard include/config/phys/addr/t/64bit.h) \
+    $(wildcard include/config/64bit.h) \
+  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/types.h \
+  include/asm-generic/types.h \
+  include/asm-generic/int-ll64.h \
+  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/bitsperlong.h \
+  include/asm-generic/bitsperlong.h \
+  include/linux/posix_types.h \
+  include/linux/stddef.h \
   include/linux/compiler.h \
     $(wildcard include/config/sparse/rcu/pointer.h) \
     $(wildcard include/config/trace/branch/profiling.h) \
@@ -27,30 +29,31 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.o := \
     $(wildcard include/config/arch/supports/optimized/inlining.h) \
     $(wildcard include/config/optimize/inlining.h) \
   include/linux/compiler-gcc4.h \
-  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/linkage.h \
+  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/posix_types.h \
     $(wildcard include/config/x86/32.h) \
+  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/posix_types_32.h \
+  include/linux/cache.h \
+    $(wildcard include/config/smp.h) \
+    $(wildcard include/config/arch/has/cache/line/size.h) \
+  include/linux/kernel.h \
+    $(wildcard include/config/preempt/voluntary.h) \
+    $(wildcard include/config/debug/atomic/sleep.h) \
+    $(wildcard include/config/prove/locking.h) \
+    $(wildcard include/config/ring/buffer.h) \
+    $(wildcard include/config/tracing.h) \
+    $(wildcard include/config/numa.h) \
+    $(wildcard include/config/compaction.h) \
+    $(wildcard include/config/ftrace/mcount/record.h) \
+  /usr/lib/gcc/i686-linux-gnu/4.6/include/stdarg.h \
+  include/linux/linkage.h \
+  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/linkage.h \
     $(wildcard include/config/x86/64.h) \
     $(wildcard include/config/x86/alignment/16.h) \
   include/linux/stringify.h \
-  include/linux/stddef.h \
-  include/linux/types.h \
-    $(wildcard include/config/uid16.h) \
-    $(wildcard include/config/arch/dma/addr/t/64bit.h) \
-    $(wildcard include/config/phys/addr/t/64bit.h) \
-    $(wildcard include/config/64bit.h) \
-  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/types.h \
-  include/asm-generic/types.h \
-  include/asm-generic/int-ll64.h \
-  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/bitsperlong.h \
-  include/asm-generic/bitsperlong.h \
-  include/linux/posix_types.h \
-  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/posix_types.h \
-  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/posix_types_32.h \
   include/linux/bitops.h \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/bitops.h \
     $(wildcard include/config/x86/cmov.h) \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/alternative.h \
-    $(wildcard include/config/smp.h) \
     $(wildcard include/config/paravirt.h) \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/asm.h \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/cpufeature.h \
@@ -94,39 +97,11 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.o := \
     $(wildcard include/config/generic/bug.h) \
     $(wildcard include/config/generic/bug/relative/pointers.h) \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/div64.h \
-  include/linux/slab.h \
-    $(wildcard include/config/slab/debug.h) \
-    $(wildcard include/config/debug/objects.h) \
-    $(wildcard include/config/kmemcheck.h) \
-    $(wildcard include/config/failslab.h) \
-    $(wildcard include/config/slub.h) \
-    $(wildcard include/config/slob.h) \
-    $(wildcard include/config/debug/slab.h) \
-    $(wildcard include/config/slab.h) \
-  include/linux/gfp.h \
-    $(wildcard include/config/highmem.h) \
-    $(wildcard include/config/zone/dma.h) \
-    $(wildcard include/config/zone/dma32.h) \
-  include/linux/mmzone.h \
-    $(wildcard include/config/force/max/zoneorder.h) \
-    $(wildcard include/config/memory/hotplug.h) \
-    $(wildcard include/config/sparsemem.h) \
-    $(wildcard include/config/arch/populates/node/map.h) \
-    $(wildcard include/config/discontigmem.h) \
-    $(wildcard include/config/flat/node/mem/map.h) \
-    $(wildcard include/config/cgroup/mem/res/ctlr.h) \
-    $(wildcard include/config/no/bootmem.h) \
-    $(wildcard include/config/have/memory/present.h) \
-    $(wildcard include/config/have/memoryless/nodes.h) \
-    $(wildcard include/config/need/node/memmap/size.h) \
-    $(wildcard include/config/need/multiple/nodes.h) \
-    $(wildcard include/config/have/arch/early/pfn/to/nid.h) \
-    $(wildcard include/config/flatmem.h) \
-    $(wildcard include/config/sparsemem/extreme.h) \
-    $(wildcard include/config/have/arch/pfn/valid.h) \
-    $(wildcard include/config/nodes/span/other/nodes.h) \
-    $(wildcard include/config/holes/in/zone.h) \
-    $(wildcard include/config/arch/has/holes/memorymodel.h) \
+  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/cache.h \
+    $(wildcard include/config/x86/l1/cache/shift.h) \
+    $(wildcard include/config/x86/internode/cache/shift.h) \
+    $(wildcard include/config/x86/vsmp.h) \
+  include/linux/seqlock.h \
   include/linux/spinlock.h \
     $(wildcard include/config/debug/spinlock.h) \
     $(wildcard include/config/generic/lockbreak.h) \
@@ -151,16 +126,19 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.o := \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/page_32.h \
     $(wildcard include/config/hugetlb/page.h) \
     $(wildcard include/config/debug/virtual.h) \
+    $(wildcard include/config/flatmem.h) \
     $(wildcard include/config/x86/3dnow.h) \
   include/linux/string.h \
     $(wildcard include/config/binary/printf.h) \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/string.h \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/string_32.h \
+    $(wildcard include/config/kmemcheck.h) \
   include/asm-generic/memory_model.h \
+    $(wildcard include/config/discontigmem.h) \
     $(wildcard include/config/sparsemem/vmemmap.h) \
+    $(wildcard include/config/sparsemem.h) \
   include/asm-generic/getorder.h \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/processor.h \
-    $(wildcard include/config/x86/vsmp.h) \
     $(wildcard include/config/cc/stackprotector.h) \
     $(wildcard include/config/m386.h) \
     $(wildcard include/config/m486.h) \
@@ -183,6 +161,7 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.o := \
     $(wildcard include/config/compat/vdso.h) \
     $(wildcard include/config/proc/fs.h) \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/pgtable_32_types.h \
+    $(wildcard include/config/highmem.h) \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/pgtable-3level_types.h \
   include/asm-generic/pgtable-nopud.h \
   include/asm-generic/ptrace.h \
@@ -232,11 +211,6 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.o := \
   include/asm-generic/errno-base.h \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/cpumask.h \
   include/linux/personality.h \
-  include/linux/cache.h \
-    $(wildcard include/config/arch/has/cache/line/size.h) \
-  /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/cache.h \
-    $(wildcard include/config/x86/l1/cache/shift.h) \
-    $(wildcard include/config/x86/internode/cache/shift.h) \
   include/linux/math64.h \
   include/linux/err.h \
   /usr/src/linux-headers-3.2.0-101-generic-pae/arch/x86/include/asm/ftrace.h \
@@ -293,10 +267,38 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.o := \
     $(wildcard include/config/inline/write/unlock/irq.h) \
     $(wildcard include/config/inline/read/unlock/irqrestore.h) \
     $(wildcard include/config/inline/write/unlock/irqrestore.h) \
+  /home/fw/link_workspace/Firewall/KERN_SRC/fw.h \
+  include/linux/slab.h \
+    $(wildcard include/config/slab/debug.h) \
+    $(wildcard include/config/debug/objects.h) \
+    $(wildcard include/config/failslab.h) \
+    $(wildcard include/config/slub.h) \
+    $(wildcard include/config/slob.h) \
+    $(wildcard include/config/debug/slab.h) \
+    $(wildcard include/config/slab.h) \
+  include/linux/gfp.h \
+    $(wildcard include/config/zone/dma.h) \
+    $(wildcard include/config/zone/dma32.h) \
+  include/linux/mmzone.h \
+    $(wildcard include/config/force/max/zoneorder.h) \
+    $(wildcard include/config/memory/hotplug.h) \
+    $(wildcard include/config/arch/populates/node/map.h) \
+    $(wildcard include/config/flat/node/mem/map.h) \
+    $(wildcard include/config/cgroup/mem/res/ctlr.h) \
+    $(wildcard include/config/no/bootmem.h) \
+    $(wildcard include/config/have/memory/present.h) \
+    $(wildcard include/config/have/memoryless/nodes.h) \
+    $(wildcard include/config/need/node/memmap/size.h) \
+    $(wildcard include/config/need/multiple/nodes.h) \
+    $(wildcard include/config/have/arch/early/pfn/to/nid.h) \
+    $(wildcard include/config/sparsemem/extreme.h) \
+    $(wildcard include/config/have/arch/pfn/valid.h) \
+    $(wildcard include/config/nodes/span/other/nodes.h) \
+    $(wildcard include/config/holes/in/zone.h) \
+    $(wildcard include/config/arch/has/holes/memorymodel.h) \
   include/linux/wait.h \
   include/linux/numa.h \
     $(wildcard include/config/nodes/shift.h) \
-  include/linux/seqlock.h \
   include/linux/nodemask.h \
   include/linux/pageblock-flags.h \
     $(wildcard include/config/hugetlb/page/size/variable.h) \
@@ -361,8 +363,6 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.o := \
     $(wildcard include/config/debug/objects/timers.h) \
   include/linux/ktime.h \
     $(wildcard include/config/ktime/scalar.h) \
-  include/linux/time.h \
-    $(wildcard include/config/arch/uses/gettimeoffset.h) \
   include/linux/jiffies.h \
   include/linux/timex.h \
   include/linux/param.h \
