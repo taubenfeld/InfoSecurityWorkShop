@@ -58,7 +58,7 @@ int load_rules(const char *rules_file_path) {
     return 1;
   }
 
-  length = fread(rules_user_space_format, 1, PAGE_SIZE * 10 , user_file);
+  length = fread(rules_user_space_format, 1, PAGE_SIZE * 2 , user_file);
   fclose(user_file);
   if (length < 0) {
     printf("Error while reading rules file\n.");
@@ -69,12 +69,14 @@ int load_rules(const char *rules_file_path) {
   else {
     if (rules_user_format_to_kernel_format(
         rules_user_space_format, rules_kernel_space_format) < 0) {
-      printf("Invalid rules format.\n");
+      printf("Failed loading rule table: Invalid rule format.\n");
+      return -1;
     };
     driver_file_desc = open(RULES_SYSFS_LOAD_STORE_DRIVER_PATH, O_WRONLY);
     if(driver_file_desc < 0) {
       printf("Unable to open logs driver: %s.\n", strerror(errno));
-      return 1;
+      return -1;
+
     }
     return_status = write(driver_file_desc, rules_kernel_space_format, length);
   }
@@ -90,7 +92,7 @@ int show_log() {
   char logs_user_space_format[PAGE_SIZE * 10] = {0};
   char remainder[MAX_USER_FORMAT_LOG_LENGTH] = {0};
   // Print the title.
-  printf("%-30s %-20s %-20s %-10s %-10s %-10s %-10s %-10s %-30s %-10s\n",
+  printf("%-30s %-21s %-21s %-10s %-10s %-10s %-10s %-10s %-30s %-10s\n",
       "timestamp", "src_ip", "dst_ip", "src_port", "dst_port", "protocol", "hooknum", "action",
       "reason", "count");
 
@@ -105,7 +107,7 @@ int show_log() {
     printf("%s", (logs_user_space_format));
   }
   close(driver_file_desc);
-  printf("Done getting rules.\n");
+  printf("Done getting logs.\n");
   return 0;
 }
 
@@ -136,9 +138,9 @@ int fw_activate_deactivate(char status) {
   write(filedesc, &status, 1);
   close(filedesc);
   if (status == STATUS_ACTIVE){
-    printf("Device active.\n");
+    printf("Device is now active.\n");
   } else {
-    printf("Device not active.\n");
+    printf("Device is now not active.\n");
   }
   return 0;
 }

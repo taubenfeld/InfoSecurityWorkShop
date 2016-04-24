@@ -13,9 +13,11 @@ int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule) {
 
   switch (new_rule->protocol) {
   case PROT_TCP:
-    tcph = tcp_hdr(skb);
+    tcph  = (struct tcphdr *)((__u32 *)iph + iph->ihl);
     new_rule->src_port = ntohs(tcph->source);
     new_rule->dst_port = ntohs(tcph->dest);
+    printk(KERN_INFO "new_rule->src_port: %d\n", new_rule->src_port);
+    printk(KERN_INFO "new_rule->dst_port: %d\n", new_rule->dst_port);
     new_rule->ack = tcph->ack ? ACK_YES : ACK_NO;
     // Check X_MAS_PACKET
     if (tcph->fin && tcph->urg && tcph->psh) {
@@ -23,9 +25,9 @@ int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule) {
     }
     break;
   case PROT_UDP:
-    udph = udp_hdr(skb);
-    new_rule->src_port = udph->source;
-    new_rule->dst_port = udph->dest;
+    udph = (struct udphdr *)((__u32 *)iph + iph->ihl);
+    new_rule->src_port = ntohs(udph->source);
+    new_rule->dst_port = ntohs(udph->dest);
     break;
   case PROT_ICMP: // ICMP doesn't uses port. TODO(amirt): validate that this is what expected.
   case PROT_OTHER:
@@ -38,7 +40,7 @@ int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule) {
 
 int ports_match(int rule_port, int table_rule_port) {
   return (table_rule_port == PORT_ANY_NUMBER)
-      || ((table_rule_port > PORT_1023) && (rule_port > PORT_1023))
+      || ((table_rule_port > PORT_ABOVE_1023) && (rule_port > PORT_ABOVE_1023))
       || (table_rule_port == rule_port);
 }
 
@@ -54,7 +56,7 @@ int match_rule_aginst_table_rule(rule_t rule, rule_t table_rule) {
     //printk(KERN_INFO "%s\n", "Direction don't match");
     return 0;
   }
-  if (!(rule.protocol & table_rule.protocol)) {
+  if (table_rule.protocol != PROT_ANY && rule.protocol != table_rule.protocol) {
     //printk(KERN_INFO "%s\n", "protocol don't match");
     return 0;
   }
@@ -84,18 +86,21 @@ int match_rule_aginst_table_rule(rule_t rule, rule_t table_rule) {
 
 int verify_packet(struct sk_buff *skb, int hooknum) {
   int i;
+  int status;
   rule_t new_rule;
   rule_t table_rule;
   int action = NF_ACCEPT;
   reason_t reason = REASON_NO_MATCHING_RULE;
 
-  if (create_rule_from_packet(skb, &new_rule) < 0) {
-    action = NF_DROP;
-    reason = REASON_XMAS_PACKET;
-  }
+  status = create_rule_from_packet(skb, &new_rule);
+
   if (firewall_rule_checking_status == STATUS_NOT_ACTIVE) {
     reason = REASON_FW_INACTIVE;
     action = NF_ACCEPT;
+  }
+  else if (status < 0) {
+    action = NF_DROP;
+    reason = REASON_XMAS_PACKET;
   }
   else { // Check for a matching rule. TODO(amirt): In and out for the hosts.
     new_rule.direction = (hooknum == NF_INET_PRE_ROUTING) ? DIRECTION_IN : DIRECTION_OUT;
@@ -103,7 +108,7 @@ int verify_packet(struct sk_buff *skb, int hooknum) {
       table_rule = rules_table[i];
       if (match_rule_aginst_table_rule(new_rule, table_rule)) {
         action = table_rule.action;
-        reason = i;
+        reason = i; // Packet matched rule, the reason should be the rule number.
         break;
       }
     }

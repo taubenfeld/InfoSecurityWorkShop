@@ -7,7 +7,6 @@
 #include "chardev_logs.h"
 
 // All ports greater than 1023 should be treated equally.
-#define PORT_1023 (1023)
 #define PORT_ANY_NUMBER (1025)
 #define IP_ANY (0)
 
