@@ -5,7 +5,6 @@
 #include <linux/string.h>
 #include "fw.h"
 
-#define RULES_DEVICE_NAME "fw_rules"
 #define NUMBER_OF_FIELDS_IN_RULE (11)
 #define STATUS_NOT_ACTIVE (0)
 #define STATUS_ACTIVE (1)

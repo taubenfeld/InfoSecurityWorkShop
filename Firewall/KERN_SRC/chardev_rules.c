@@ -106,7 +106,6 @@ ssize_t show_rules_size(struct device *dev,struct device_attribute *attr, char *
 
 /*
  * Register attribute for display size.
- * TODO: verify that NULL is appropriate.
  */
 static DEVICE_ATTR(rules_size, S_IROTH, show_rules_size, NULL);
 
@@ -166,7 +165,7 @@ static DEVICE_ATTR(rules_clear, S_IWOTH , NULL, sysfs_clear_rules);
 
 int register_rules_driver(struct class* fw_sysfs_class) {
   // Create char device. fops is empty because we are using sysfs.
-  rules_device_major_number = register_chrdev(0, RULES_DEVICE_NAME, &rules_device_fops);
+  rules_device_major_number = register_chrdev(0, DEVICE_NAME_RULES, &rules_device_fops);
   if(rules_device_major_number < 0) {
     printk(KERN_INFO "Failed to register rules device.\n.");
     return -1;
@@ -174,9 +173,9 @@ int register_rules_driver(struct class* fw_sysfs_class) {
 
   // Create sysfs device.
   rules_device_sysfs_device = device_create(
-          fw_sysfs_class, NULL, MKDEV(rules_device_major_number, 0), NULL, RULES_DEVICE_NAME);
+          fw_sysfs_class, NULL, MKDEV(rules_device_major_number, 0), NULL, DEVICE_NAME_RULES);
   if(IS_ERR(rules_device_sysfs_device)) {
-    unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    unregister_chrdev(rules_device_major_number, DEVICE_NAME_RULES);
     printk(KERN_INFO "Failed to create rules device.\n.");
     return -1;
   }
@@ -185,7 +184,7 @@ int register_rules_driver(struct class* fw_sysfs_class) {
   if(device_create_file(rules_device_sysfs_device,
       (const struct device_attribute*) &dev_attr_rules_load_store.attr)) {
     device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));
-    unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    unregister_chrdev(rules_device_major_number, DEVICE_NAME_RULES);
     printk(KERN_INFO "Failed to create rules load store attribute.\n.");
     return -1;
   }
@@ -196,7 +195,7 @@ int register_rules_driver(struct class* fw_sysfs_class) {
     device_remove_file(rules_device_sysfs_device,
         (const struct device_attribute *)&dev_attr_rules_load_store.attr);
     device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));
-    unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    unregister_chrdev(rules_device_major_number, DEVICE_NAME_RULES);
     printk(KERN_INFO "Failed to create rules size attribute.\n.");
     return -1;
   }
@@ -209,7 +208,7 @@ int register_rules_driver(struct class* fw_sysfs_class) {
     device_remove_file(rules_device_sysfs_device,
         (const struct device_attribute *)&dev_attr_rules_load_store.attr);
     device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));
-    unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    unregister_chrdev(rules_device_major_number, DEVICE_NAME_RULES);
     printk(KERN_INFO "Failed to create rules size attribute.\n.");
     return -1;
   }
@@ -224,7 +223,7 @@ int register_rules_driver(struct class* fw_sysfs_class) {
     device_remove_file(rules_device_sysfs_device,
         (const struct device_attribute *)&dev_attr_rules_load_store.attr);
     device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));
-    unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    unregister_chrdev(rules_device_major_number, DEVICE_NAME_RULES);
     printk(KERN_INFO "Failed to create rules size attribute.\n.");
     return -1;
   }
@@ -241,6 +240,6 @@ int remove_rules_device(struct class* fw_sysfs_class) {
   device_remove_file(
       rules_device_sysfs_device, (const struct device_attribute *)&dev_attr_rules_load_store.attr);
   device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));
-  unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+  unregister_chrdev(rules_device_major_number, DEVICE_NAME_RULES);
   return 0;
 }

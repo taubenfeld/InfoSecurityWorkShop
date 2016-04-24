@@ -18,7 +18,6 @@ char *pointer_to_current_location_in_read_buffer;
  * List handling methods.
  **************************************************************************************************/
 
-// TODO: Merge logs.
 void add_log(unsigned long timestamp, unsigned char protocol, unsigned char action,
     unsigned char hooknum, __be32 src_ip, __be32 dst_ip, __be16 src_port, __be16 dst_port,
     reason_t reason) {
@@ -37,14 +36,18 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
         && cur_entry->reason == reason) {
       // We found an equal log, increment its count field.
       cur_entry->count++;
-      printk(KERN_INFO "----------------------  Found log, incrementing its count.\n");
       return;
     }
   }
 
-  // This log doesn't exists in the list, create a new node.
+  // The log doesn't exists in the list. Create a new node.
   // Note that it is important to use GFP_ATOMIC due to concurrency considerations.
   new = kmalloc(sizeof(log_row_t), GFP_ATOMIC);
+  if (new == NULL) {
+    printk(KERN_INFO "ERROR: Failed to allocate space for new log. Not adding the current log.\n");
+    return;
+  }
+
   INIT_LIST_HEAD(&(new->list));
   new->timestamp = timestamp;
   new->protocol = protocol;
@@ -58,7 +61,6 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
   new->count = 1;
   list_add_tail(&(new->list), &logs_list.list);
   logs_size++;
-  printk(KERN_INFO "----------------------  Creating a new log.\n");
 }
 
 void clear_logs_list(void) {
@@ -121,8 +123,10 @@ int open_log_device(struct inode *_inode, struct file *_file) {
       (get_logs_size() + 1) * LOG_SIZE_AS_STRING + 1;
 
   // Prepare all the logs that should be written.
-  // TODO check calloc.
   read_buffer = kcalloc(remaining_number_of_bytes_to_read, 1, GFP_KERNEL);
+  if (read_buffer == NULL) {
+    return -1;
+  }
   pointer_to_current_location_in_read_buffer = read_buffer;
 
   // Fill the buffer with the logs.
@@ -184,7 +188,6 @@ ssize_t sysfs_show_logs_size(struct device *dev,struct device_attribute *attr, c
 }
 /*
  * Register attribute for display size.
- * TODO: verify that NULL is appropriate.
  */
 static DEVICE_ATTR(log_size, S_IROTH, sysfs_show_logs_size, NULL);
 
@@ -215,17 +218,16 @@ static DEVICE_ATTR(log_clear, S_IWOTH , NULL, sysfs_clear_logs);
 
 
 int register_logs_driver(struct class* fw_sysfs_class) {
-  // TODO: add fops for showing logs.
-  logs_device_major_number = register_chrdev(0, LOGS_DEVICE_NAME, &logs_device_fops);
+  logs_device_major_number = register_chrdev(0, DEVICE_NAME_LOG, &logs_device_fops);
   if(logs_device_major_number < 0) {
     return -1;
   }
 
   // Create sysfs device.
   logs_device_sysfs_device = device_create(
-      fw_sysfs_class, NULL, MKDEV(logs_device_major_number, 0), NULL, LOGS_DEVICE_NAME);
+      fw_sysfs_class, NULL, MKDEV(logs_device_major_number, 0), NULL, DEVICE_NAME_LOG);
   if(IS_ERR(logs_device_sysfs_device)) {
-    unregister_chrdev(logs_device_major_number, LOGS_DEVICE_NAME);
+    unregister_chrdev(logs_device_major_number, DEVICE_NAME_LOG);
     return -1;
   }
 
@@ -233,7 +235,7 @@ int register_logs_driver(struct class* fw_sysfs_class) {
   if(device_create_file(logs_device_sysfs_device,
       (const struct device_attribute*) &dev_attr_log_size.attr)) {
     device_destroy(fw_sysfs_class, MKDEV(logs_device_major_number, 0));
-    unregister_chrdev(logs_device_major_number, LOGS_DEVICE_NAME);
+    unregister_chrdev(logs_device_major_number, DEVICE_NAME_LOG);
     return -1;
   }
 
@@ -243,7 +245,7 @@ int register_logs_driver(struct class* fw_sysfs_class) {
     device_remove_file(
         logs_device_sysfs_device, (const struct device_attribute *)&dev_attr_log_size.attr);
     device_destroy(fw_sysfs_class, MKDEV(logs_device_major_number, 0));
-    unregister_chrdev(logs_device_major_number, LOGS_DEVICE_NAME);
+    unregister_chrdev(logs_device_major_number, DEVICE_NAME_LOG);
     return -1;
   }
 
@@ -258,7 +260,7 @@ int remove_logs_device(struct class* fw_sysfs_class) {
   device_remove_file(
       logs_device_sysfs_device, (const struct device_attribute *)&dev_attr_log_size.attr);
   device_destroy(fw_sysfs_class, MKDEV(logs_device_major_number, 0));
-  unregister_chrdev(logs_device_major_number, LOGS_DEVICE_NAME);
+  unregister_chrdev(logs_device_major_number, DEVICE_NAME_LOG);
   return 0;
 }
 

@@ -5,8 +5,6 @@
 #include "fw.h"
 #include "linux/list.h"
 
-#define LOGS_DEVICE_NAME "fw_logs"
-
 /*
  * The size of each field in the log entry when printing it.
  */

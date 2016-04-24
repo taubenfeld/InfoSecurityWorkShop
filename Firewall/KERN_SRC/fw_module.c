@@ -49,7 +49,7 @@ unsigned int post_routing_hook(unsigned int hooknum, struct sk_buff *skb,
 
 
 static int register_drivers(void) {
-  sysfs_class = class_create(THIS_MODULE, "fw_class");
+  sysfs_class = class_create(THIS_MODULE, CLASS_NAME);
   if(IS_ERR(sysfs_class)) {
     return -1;
   }

@@ -11,11 +11,11 @@
 #include "parser.h"
 
 #define PAGE_SIZE (4096)
-#define RULES_SYSFS_LOAD_STORE_DRIVER_PATH "/sys/class/fw_class/fw_rules/rules_load_store"
-#define RULES_SYSFS_CLEAR_DRIVER_PATH "/sys/class/fw_class/fw_rules/rules_clear"
-#define RULES_SYSFS_ACTIVE_DRIVER_PATH "/sys/class/fw_class/fw_rules/active"
-#define LOG_SYSFS_CLEAR_DRIVER_PATH "/sys/class/fw_class/fw_logs/log_clear"
-#define LOG_DEV_DRIVER_PATH "/dev/fw_logs"
+#define RULES_SYSFS_LOAD_STORE_DRIVER_PATH "/sys/class/fw/fw_rules/rules_load_store"
+#define RULES_SYSFS_CLEAR_DRIVER_PATH "/sys/class/fw/fw_rules/rules_clear"
+#define RULES_SYSFS_ACTIVE_DRIVER_PATH "/sys/class/fw/fw_rules/active"
+#define LOG_SYSFS_CLEAR_DRIVER_PATH "/sys/class/fw/fw_log/log_clear"
+#define LOG_DEV_DRIVER_PATH "/dev/fw_log"
 
 #define STATUS_NOT_ACTIVE '0'
 #define STATUS_ACTIVE '1'
