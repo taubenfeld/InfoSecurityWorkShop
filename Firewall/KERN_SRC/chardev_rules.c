@@ -79,10 +79,14 @@ ssize_t set_rules(
     output_rule.dst_prefix_size = (char) dst_prefix_size;
     output_rule.protocol = (char) protocol;
     output_rule.action = (char) action;
+    // Flip the bits of 0 and shift left saw that exactly |src_prefix_size| will be ones.
+    output_rule.src_prefix_mask = (~0) << (32 - src_prefix_size);
+    // Flip the bits of 0 and shift left saw that exactly |dst_prefix_size| will be ones.
+    output_rule.dst_prefix_mask = (~0) << (32 - dst_prefix_size);
 
-    printk(KERN_INFO "input_string_rule: %s\n", input_string_rule);
-    printk(KERN_INFO "output_rule.protocol: %u\n", output_rule.protocol);
-    printk(KERN_INFO "status: %d\n", status);
+//    printk(KERN_INFO "input_string_rule: %s\n", input_string_rule);
+//    printk(KERN_INFO "output_rule.protocol: %u\n", output_rule.protocol);
+//    printk(KERN_INFO "status: %d\n", status);
     if (status < NUMBER_OF_FIELDS_IN_RULE) {
       number_of_rules = 0;
       return EINVAL;
@@ -91,7 +95,7 @@ ssize_t set_rules(
       number_of_rules++;
     }
   }
-  printk(KERN_INFO "Done loading rules.");
+//  printk(KERN_INFO "Done loading rules.");
   return strnlen(buf, count);
 }
 

@@ -13,7 +13,7 @@
 /*
  * Create a rule from a given packet.
  */
-int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule);
+int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule, int hooknum);
 
 /*
  * Check if a given rule matches a given table rule.

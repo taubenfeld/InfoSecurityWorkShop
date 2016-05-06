@@ -27,6 +27,7 @@ __attribute__((section("__versions"))) = {
 	{ 0x121a120e, "__register_chrdev" },
 	{ 0x85df9b6c, "strsep" },
 	{ 0xa90dd060, "nf_register_hook" },
+	{ 0xe2d5255a, "strcmp" },
 	{ 0x50eedeb8, "printk" },
 	{ 0x42224298, "sscanf" },
 	{ 0x2f287f0d, "copy_to_user" },
@@ -51,4 +52,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "B6BDAC7FB34222F2CEC0E77");
+MODULE_INFO(srcversion, "7AC2CAA77B7B8AFC10B7EB1");

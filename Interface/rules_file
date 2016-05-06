@@ -1,2 +1,8 @@
-loopback any 10.0.4.4 10.0.1.1 UDP 997 >1023 yes drop
-loopback any 10.0.4.4 10.0.1.1 TCP 997 >1023 no drop
+loopback any 127.0.0.1/8 127.0.0.1/8 any any any any accept
+GW_attack any any 10.0.2.15 any any any any drop
+spoof1 in 10.0.1.1/24 10.0.2.2/24 any any any any drop
+spoof2 out 10.0.2.2/24 any any any any any drop
+telnet1 out 10.0.1.1/24 any TCP >1023 23 any accept
+telnet2 out any 10.0.2.3/8 TCP >1023 >1023 any accept
+telnet3 in 10.0.2.3 any TCP >1023 >1023 yes accept
+default any any any any any any any drop

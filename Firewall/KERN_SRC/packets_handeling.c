@@ -1,6 +1,7 @@
 #include "packets_handeling.h"
 
-int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule) {
+int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule, int hooknum) {
+  char *device_name;
   struct iphdr *iph;
   struct udphdr *udph;
   struct tcphdr *tcph;
@@ -8,8 +9,27 @@ int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule) {
   new_rule->src_ip = iph->saddr;
   new_rule->dst_ip = iph->daddr;
   new_rule->protocol = iph->protocol;
-  // TODO(amirt): validate that this is what expected.
-  new_rule->ack = ACK_ANY; // This is overridden in case it is a TCP protocol.
+  new_rule->ack = ACK_NO; // This is overridden in case it is a TCP protocol.
+
+  // Set direction according to the net device.
+  new_rule->direction = DIRECTION_ANY; // This is overridden in case the net device is eth0/eth1.
+  device_name = skb->dev->name;
+  // This is a packet that is coming from the outer network so direction is IN.
+  if (strcmp(device_name, OUT_NET_DEVICE_NAME) == 0 && hooknum == NF_INET_PRE_ROUTING) {
+    new_rule->direction = DIRECTION_IN;
+  }
+  // This is a packet that is going to the inner network so direction is IN.
+  if (strcmp(device_name, IN_NET_DEVICE_NAME) == 0 && hooknum == NF_INET_POST_ROUTING) {
+    new_rule->direction = DIRECTION_IN;
+  }
+  // This is a packet that is coming from the inner network so direction is OUT.
+  if (strcmp(device_name, IN_NET_DEVICE_NAME) == 0 && hooknum == NF_INET_PRE_ROUTING) {
+    new_rule->direction = DIRECTION_OUT;
+  }
+  // This is a packet that is going to the outer network so direction is OUT.
+  if (strcmp(device_name, OUT_NET_DEVICE_NAME) == 0 && hooknum == NF_INET_POST_ROUTING) {
+    new_rule->direction = DIRECTION_OUT;
+  }
 
   switch (new_rule->protocol) {
   case PROT_TCP:
@@ -32,6 +52,7 @@ int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule) {
   case PROT_ICMP: // ICMP doesn't uses port. TODO(amirt): validate that this is what expected.
   case PROT_OTHER:
   case PROT_ANY:
+    // This will match iff the the port in the rule is any.
     new_rule->src_port = PORT_ANY;
     new_rule->dst_port = PORT_ANY;
   }
@@ -44,8 +65,8 @@ int ports_match(int rule_port, int table_rule_port) {
       || (table_rule_port == rule_port);
 }
 
-int ips_match(int rule_ip, int table_rule_ip) {
-  return (table_rule_ip == IP_ANY) || (table_rule_ip == rule_ip);
+int ips_match(int rule_ip, int table_rule_ip, int mask) {
+  return (table_rule_ip == IP_ANY) || ((table_rule_ip&mask) == (rule_ip&mask));
 }
 
 /*
@@ -72,11 +93,11 @@ int match_rule_aginst_table_rule(rule_t rule, rule_t table_rule) {
     //printk(KERN_INFO "%s\n", "dst_port don't match");
     return 0;
   }
-  if (!(ips_match(rule.src_ip, table_rule.src_ip))) {
+  if (!(ips_match(rule.src_ip, table_rule.src_ip, table_rule.src_prefix_mask))) {
     //printk(KERN_INFO "%s\n", "src_ip don't match");
     return 0;
   }
-  if (!(ips_match(rule.dst_ip, table_rule.dst_ip))) {
+  if (!(ips_match(rule.dst_ip, table_rule.dst_ip, table_rule.dst_prefix_mask))) {
     //printk(KERN_INFO "%s\n", "dst_ip don't match");
     return 0;
   }
@@ -92,7 +113,7 @@ int verify_packet(struct sk_buff *skb, int hooknum) {
   int action = NF_ACCEPT;
   reason_t reason = REASON_NO_MATCHING_RULE;
 
-  status = create_rule_from_packet(skb, &new_rule);
+  status = create_rule_from_packet(skb, &new_rule, hooknum);
 
   if (firewall_rule_checking_status == STATUS_NOT_ACTIVE) {
     reason = REASON_FW_INACTIVE;
@@ -102,8 +123,10 @@ int verify_packet(struct sk_buff *skb, int hooknum) {
     action = NF_DROP;
     reason = REASON_XMAS_PACKET;
   }
-  else { // Check for a matching rule. TODO(amirt): In and out for the hosts.
-    new_rule.direction = (hooknum == NF_INET_PRE_ROUTING) ? DIRECTION_IN : DIRECTION_OUT;
+  else { // Check for a matching rule.
+    // This line has been comment out because ruevan said the directing is only determined to hosts.
+    // new_rule.direction = (hooknum == NF_INET_PRE_ROUTING) ? DIRECTION_IN : DIRECTION_OUT;
+
     for (i = 0; i < number_of_rules; i++) {
       table_rule = rules_table[i];
       if (match_rule_aginst_table_rule(new_rule, table_rule)) {
