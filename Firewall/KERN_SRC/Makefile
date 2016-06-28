@@ -1,16 +1,7 @@
 
-obj-m		:= fw.o 
-fw-objs 	+= fw_module.o chardev_logs.o chardev_info.o chardev_rules.o packets_handeling.o
-
-KERN_SRC	:= /lib/modules/$(shell uname -r)/build/
-PWD			:= $(shell pwd)
-
-modules:
-	make -C $(KERN_SRC) M=$(PWD) modules
-
-install:
-	make -C $(KERN_SRC) M=$(PWD) modules_install
-	depmod -a
-
+obj-m		:= firewall.o 
+firewall-objs 	+= fw_module.o chardev_logs.o chardev_info.o chardev_rules.o packets_handeling.o
+all:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 clean:
-	make -C $(KERN_SRC) M=$(PWD) clean
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean 

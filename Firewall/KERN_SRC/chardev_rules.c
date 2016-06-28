@@ -79,6 +79,11 @@ ssize_t set_rules(
     output_rule.dst_prefix_size = (char) dst_prefix_size;
     output_rule.protocol = (char) protocol;
     output_rule.action = (char) action;
+
+    // If not prefix was specified treat as 32 bit prefix.
+    src_prefix_size = src_prefix_size == 0 ? 32 : src_prefix_size;
+    dst_prefix_size = dst_prefix_size == 0 ? 32 : dst_prefix_size;
+
     // Flip the bits of 0 and shift left saw that exactly |src_prefix_size| will be ones.
     output_rule.src_prefix_mask = (~0) << (32 - src_prefix_size);
     // Flip the bits of 0 and shift left saw that exactly |dst_prefix_size| will be ones.

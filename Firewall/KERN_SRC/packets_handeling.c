@@ -36,8 +36,8 @@ int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule, int hooknum) 
     tcph  = (struct tcphdr *)((__u32 *)iph + iph->ihl);
     new_rule->src_port = ntohs(tcph->source);
     new_rule->dst_port = ntohs(tcph->dest);
-    printk(KERN_INFO "new_rule->src_port: %d\n", new_rule->src_port);
-    printk(KERN_INFO "new_rule->dst_port: %d\n", new_rule->dst_port);
+    //printk(KERN_INFO "new_rule->src_port: %d\n", new_rule->src_port);
+    //printk(KERN_INFO "new_rule->dst_port: %d\n", new_rule->dst_port);
     new_rule->ack = tcph->ack ? ACK_YES : ACK_NO;
     // Check X_MAS_PACKET
     if (tcph->fin && tcph->urg && tcph->psh) {

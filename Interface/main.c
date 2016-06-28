@@ -58,12 +58,12 @@ int load_rules(const char *rules_file_path) {
     return 1;
   }
 
-  length = fread(rules_user_space_format, 1, PAGE_SIZE * 2 , user_file);
+  length = fread(rules_user_space_format, 1, PAGE_SIZE * 10, user_file);
   fclose(user_file);
   if (length < 0) {
     printf("Error while reading rules file\n.");
   }
-  else if (length > PAGE_SIZE) {
+  else if (length > PAGE_SIZE * 10) {
     printf("Rules size is too big\n.");
   }
   else {
