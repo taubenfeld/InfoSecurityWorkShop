@@ -79,15 +79,13 @@ void clear_logs_list(void) {
   logs_size = 0;
 }
 
-void get_logs(char *buff) {
+void get_logs(char *buff, int max_size) {
   log_row_t *cur_entry;
   char temp_str_log[LOG_SIZE_AS_STRING + 1] = {0};
+  int cur_size = 0;
 
-  // Start to read from where we stopped last time (cur_entry_in_read).
-  // Use this to align printing. Currently the align parsing is done only in userspace.
-  // "%-19.lu %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.d %-19.u\n",
   list_for_each_entry(cur_entry, &(logs_list.list), list) {
-    scnprintf(temp_str_log, LOG_SIZE_AS_STRING + 1,
+    cur_size += scnprintf(temp_str_log, LOG_SIZE_AS_STRING + 1,
         "%lu %u %u %u %u %u %u %u %d %u\n",
         cur_entry->timestamp,
         cur_entry->protocol,
@@ -99,9 +97,13 @@ void get_logs(char *buff) {
         cur_entry->dst_port,
         cur_entry->reason,
         cur_entry->count);
+    if (cur_size >= max_size) {
+      return; // Can reach here only because of multi threading issues.
+    }
     strcat(buff, temp_str_log);
   }
 }
+
 int get_logs_size(void) {
   return logs_size;
 }
@@ -134,7 +136,7 @@ int open_log_device(struct inode *_inode, struct file *_file) {
   pointer_to_current_location_in_read_buffer = read_buffer;
 
   // Fill the buffer with the logs.
-  get_logs(read_buffer);
+  get_logs(read_buffer, remaining_number_of_bytes_to_read);
 
   return 0;
 }

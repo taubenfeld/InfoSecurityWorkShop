@@ -5,6 +5,7 @@
 #include "fw.h"
 #include "chardev_rules.h"
 #include "chardev_logs.h"
+#include "stateful.h"
 
 // All ports greater than 1023 should be treated equally.
 #define PORT_ANY_NUMBER (1025)

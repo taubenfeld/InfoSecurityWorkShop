@@ -16,6 +16,7 @@
 #define RULES_SYSFS_ACTIVE_DRIVER_PATH "/sys/class/fw/fw_rules/active"
 #define LOG_SYSFS_CLEAR_DRIVER_PATH "/sys/class/fw/fw_log/log_clear"
 #define LOG_DEV_DRIVER_PATH "/dev/fw_log"
+#define CONNECTION_DEV_DRIVER_PATH "/dev/conn_tab"
 
 #define STATUS_NOT_ACTIVE '0'
 #define STATUS_ACTIVE '1'
@@ -145,6 +146,40 @@ int fw_activate_deactivate(char status) {
   return 0;
 }
 
+int show_connection_table() {
+  int driver_file_desc;
+  int length;
+  char connections_kernel_space_format[PAGE_SIZE + 1] = {0};
+  char connections_user_space_format[PAGE_SIZE * 10] = {0};
+  char remainder[MAX_USER_FORMAT_CONNECTION_STRING_LENGTH] = {0};
+  // Print the title.
+  printf("%-21s %-21s %-21s %-21s %-21s %-21s %-21s\n",
+      "src_ip", "src_port", "dst_ip", "dst_port", "protocol", "tcp state", "protocol state");
+
+  driver_file_desc = open(CONNECTION_DEV_DRIVER_PATH, O_RDONLY);
+  if(driver_file_desc < 0) {
+    printf("Unable to open connections driver: %s.\n", strerror(errno));
+    return -1;
+  }
+  while ((length =
+      read(driver_file_desc, connections_kernel_space_format, PAGE_SIZE)) > 0) {
+    connections_kernel_format_to_user_format(
+        connections_kernel_space_format, connections_user_space_format, remainder);
+    printf("%s", (connections_user_space_format));
+  }
+  close(driver_file_desc);
+  printf("Done getting connections.\n");
+  return 0;
+}
+
+int show_hosts() {
+  //TODO
+}
+
+int load_hosts() {
+  //TODO
+}
+
 int main(int argc, char **argv) {
 
 	if(argc < 2) {
@@ -176,6 +211,15 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "deactivate") == 0) {
     return fw_activate_deactivate(STATUS_NOT_ACTIVE);
+  }
+  if (strcmp(argv[1], "show_connection_table") == 0) {
+    return show_connection_table();
+  }
+  if (strcmp(argv[1], "show_hosts") == 0) {
+    return show_hosts();
+  }
+  if (strcmp(argv[1], "load_hosts") == 0) {
+    return show_hosts();
   }
 
   printf("ERROR: Unrecognized command.\n");

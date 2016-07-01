@@ -889,6 +889,7 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/fw_module.o := \
   /home/fw/link_workspace/Firewall/KERN_SRC/chardev_info.h \
   /home/fw/link_workspace/Firewall/KERN_SRC/packets_handeling.h \
   /home/fw/link_workspace/Firewall/KERN_SRC/chardev_logs.h \
+  /home/fw/link_workspace/Firewall/KERN_SRC/stateful.h \
 
 /home/fw/link_workspace/Firewall/KERN_SRC/fw_module.o: $(deps_/home/fw/link_workspace/Firewall/KERN_SRC/fw_module.o)
 

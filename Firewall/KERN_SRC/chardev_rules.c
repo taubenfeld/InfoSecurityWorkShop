@@ -10,9 +10,11 @@ int firewall_rule_checking_status;
 unsigned short number_of_rules;
 rule_t rules_table[MAX_RULES];
 
+
 /***************************************************************************************************
  * Functions for sysfs attributes
  **************************************************************************************************/
+
 
 ssize_t get_rules(struct device *dev,struct device_attribute *attr, char *buf) {
   rule_t rule;
@@ -84,14 +86,11 @@ ssize_t set_rules(
     src_prefix_size = src_prefix_size == 0 ? 32 : src_prefix_size;
     dst_prefix_size = dst_prefix_size == 0 ? 32 : dst_prefix_size;
 
-    // Flip the bits of 0 and shift left saw that exactly |src_prefix_size| will be ones.
-    output_rule.src_prefix_mask = (~0) << (32 - src_prefix_size);
-    // Flip the bits of 0 and shift left saw that exactly |dst_prefix_size| will be ones.
-    output_rule.dst_prefix_mask = (~0) << (32 - dst_prefix_size);
+    // Flip the bits of 0 and shift right so that exactly |src_prefix_size| will be ones.
+    output_rule.src_prefix_mask = (unsigned int) (~0) >> (32 - src_prefix_size);
+    // Flip the bits of 0 and shift right so that exactly |dst_prefix_size| will be ones.
+    output_rule.dst_prefix_mask = (unsigned int) (~0) >> (32 - dst_prefix_size);
 
-//    printk(KERN_INFO "input_string_rule: %s\n", input_string_rule);
-//    printk(KERN_INFO "output_rule.protocol: %u\n", output_rule.protocol);
-//    printk(KERN_INFO "status: %d\n", status);
     if (status < NUMBER_OF_FIELDS_IN_RULE) {
       number_of_rules = 0;
       return EINVAL;

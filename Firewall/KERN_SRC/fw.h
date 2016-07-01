@@ -29,13 +29,16 @@ typedef enum {
 	REASON_NO_MATCHING_RULE      = -2,
 	REASON_XMAS_PACKET           = -4,
 	REASON_ILLEGAL_VALUE         = -6,
+	CONN_NOT_EXIST               = -7,
+	TCP_NON_COMPLIANT            = -8,
+	VALID_TCP_CONNECTION         = -12,
 } reason_t;
 	
 
 // auxiliary strings, for your convenience
 #define DEVICE_NAME_RULES					"fw_rules"
 #define DEVICE_NAME_LOG						"fw_log"
-#define DEVICE_NAME_CONN_TAB			"conn_tab"
+#define DEVICE_NAME_CONNECTIONS 	"conn_tab"
 #define CLASS_NAME								"fw"
 #define LOOPBACK_NET_DEVICE_NAME	"lo"
 #define IN_NET_DEVICE_NAME				"eth1"
@@ -78,9 +81,11 @@ typedef struct {
 	__u8    dst_prefix_size; 	// as above
 	__be16	src_port; 				// number of port or 0 for any or port 1023 for any port number > 1023
 	__be16	dst_port; 				// number of port or 0 for any or port 1023 for any port number > 1023
-	__u8	protocol; 					// values from: prot_t
-	ack_t	ack; 								// values from: ack_t
-	__u8	action;   					// valid values: NF_ACCEPT, NF_DROP
+	__u8	  protocol; 			  // values from: prot_t
+	ack_t	  ack; 							// values from: ack_t
+	ack_t   syn;
+	ack_t   fin;
+	__u8	  action;   				// valid values: NF_ACCEPT, NF_DROP
 } rule_t;
 
 // logging

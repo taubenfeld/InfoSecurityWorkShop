@@ -14,9 +14,9 @@ MODULE_AUTHOR("Amir Taubenfeld");
 
 /**
  * Function that will be hooked.
- * This function will be called by netfilter for forwarded packets.
+ * This function will be called by netfilter for ingoing packets.
  */
-unsigned int pre_routing_hook(unsigned int hooknum, struct sk_buff *skb,
+unsigned int in_routing_hook(unsigned int hooknum, struct sk_buff *skb,
     const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *)) {
   if (verify_packet(skb, hooknum) == NF_ACCEPT) {
     number_of_passed_packets++;
@@ -68,21 +68,26 @@ static int register_drivers(void) {
     class_destroy(sysfs_class);
     return -1;
   }
+  if (register_connections_driver(sysfs_class) == -1) {
+    remove_info_device(sysfs_class);
+    remove_rules_device(sysfs_class);
+    remove_logs_device(sysfs_class);
+    class_destroy(sysfs_class);
+    return -1;
+  }
 
   return 1;
 }
 
 static int register_hooks(void) {
-  // Register hook that disables packet forwarding.
-  pre_hook_struct.hook = pre_routing_hook;  // Hook our function.
-  pre_hook_struct.hooknum = NF_INET_PRE_ROUTING;
+  pre_hook_struct.hook = in_routing_hook;  // Hook our function.
+  pre_hook_struct.hooknum = NF_INET_LOCAL_IN;
   pre_hook_struct.priority = NF_IP_PRI_FIRST;
   pre_hook_struct.pf = PF_INET;
   if (nf_register_hook(&pre_hook_struct) < 0) {
     return -1;
   }
 
-  // Register print packed passed on all packed that have reached post rounting.
   post_routing_hook_struct.hook = post_routing_hook;  // Hook our function.
   post_routing_hook_struct.hooknum = NF_INET_POST_ROUTING;  // Hook to on post routing.
   post_routing_hook_struct.priority = NF_IP_PRI_LAST;
@@ -114,6 +119,7 @@ static int __init start_module(void) {
     printk(KERN_INFO "ERROR: Failed to register drivers\n");
     return -1;
   }
+  init_connections_list(); // TODO: Wrap this in a more appropriate manner.
   return 0;  // if non-0 return, then init_module have failed.
 }
 
@@ -126,6 +132,7 @@ static void __exit dismiss_module(void) {
   remove_info_device(sysfs_class);
   remove_rules_device(sysfs_class);
   remove_logs_device(sysfs_class);
+  remove_connections_device(sysfs_class);
   class_destroy(sysfs_class);
 }
 

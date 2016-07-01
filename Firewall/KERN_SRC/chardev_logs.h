@@ -25,8 +25,6 @@ void add_log(unsigned long timestamp, unsigned char protocol, unsigned char acti
 
 void clear_logs_list(void);
 
-void get_logs(char *buff);
-
 int get_logs_size(void);
 
 void init_logs_list(void);
