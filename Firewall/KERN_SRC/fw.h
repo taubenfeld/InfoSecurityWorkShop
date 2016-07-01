@@ -32,6 +32,7 @@ typedef enum {
 	CONN_NOT_EXIST               = -7,
 	TCP_NON_COMPLIANT            = -8,
 	VALID_TCP_CONNECTION         = -12,
+	TIME_OUT_EXPIRED             = -13,
 } reason_t;
 	
 

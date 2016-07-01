@@ -15,6 +15,7 @@
 #define RULES_SYSFS_CLEAR_DRIVER_PATH "/sys/class/fw/fw_rules/rules_clear"
 #define RULES_SYSFS_ACTIVE_DRIVER_PATH "/sys/class/fw/fw_rules/active"
 #define LOG_SYSFS_CLEAR_DRIVER_PATH "/sys/class/fw/fw_log/log_clear"
+#define CONNECTIONS_SYSFS_CLEAR_DRIVER_PATH "/sys/class/fw/conn_tab/connections_clear"
 #define LOG_DEV_DRIVER_PATH "/dev/fw_log"
 #define CONNECTION_DEV_DRIVER_PATH "/dev/conn_tab"
 
@@ -113,8 +114,7 @@ int show_log() {
 }
 
 /*
- * Writes 1 to the device path. This should clear the device for both the rules device and the log
- * device.
+ * Writes 1 to the device path. This should clear the device.
  */
 int clear_device(char *path) {
   int filedesc = open(path, O_WRONLY);
@@ -199,6 +199,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "show_log") == 0) {
     return show_log();
+  }
+  if (strcmp(argv[1], "clear_connections") == 0) {
+    return clear_device(CONNECTIONS_SYSFS_CLEAR_DRIVER_PATH);
   }
   if (strcmp(argv[1], "clear_log") == 0) {
     return clear_device(LOG_SYSFS_CLEAR_DRIVER_PATH);
