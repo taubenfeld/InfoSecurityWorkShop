@@ -16,6 +16,7 @@
 #define RULES_SYSFS_ACTIVE_DRIVER_PATH "/sys/class/fw/fw_rules/active"
 #define LOG_SYSFS_CLEAR_DRIVER_PATH "/sys/class/fw/fw_log/log_clear"
 #define CONNECTIONS_SYSFS_CLEAR_DRIVER_PATH "/sys/class/fw/conn_tab/connections_clear"
+#define CONNECTIONS_SYSFS_HOSTS_DRIVER_PATH "/sys/class/fw/conn_tab/hosts_load_store"
 #define LOG_DEV_DRIVER_PATH "/dev/fw_log"
 #define CONNECTION_DEV_DRIVER_PATH "/dev/conn_tab"
 
@@ -33,7 +34,7 @@ int show_rules() {
     printf("Unable to open driver.\n");
     return 1;
   }
-  length = read(driver_file_desc, &rules_kernel_space_format, PAGE_SIZE);
+  length = read(driver_file_desc, rules_kernel_space_format, PAGE_SIZE);
   if (length < 0) {
     printf("Error while reading from driver.");
   }
@@ -173,11 +174,53 @@ int show_connection_table() {
 }
 
 int show_hosts() {
-  //TODO
+  int driver_file_desc;
+  int length;
+  char output[PAGE_SIZE + 5] = {0};
+
+  driver_file_desc = open(CONNECTIONS_SYSFS_HOSTS_DRIVER_PATH, O_RDONLY);
+  if(driver_file_desc < 0) {
+    printf("Unable to open driver.\n");
+    return 1;
+  }
+  length = read(driver_file_desc, output, PAGE_SIZE);
+  if (length < 0) {
+    printf("Error while reading from driver.");
+  }
+  printf("%.*s", length, output);
+  close(driver_file_desc);
+  printf("Done getting hosts.\n");
+  return 0;
 }
 
-int load_hosts() {
-  //TODO
+int load_hosts(const char *hosts_file_path) {
+  FILE *user_file;
+  int driver_file_desc;
+  int length;
+  int return_status = 0;
+  char output[PAGE_SIZE + 1] = {0};
+
+  user_file = fopen(hosts_file_path, "r");
+  if(user_file == NULL) {
+    printf("Unable to open hosts file: %s.\n", strerror(errno));
+    return 1;
+  }
+
+  length = fread(output, 1, PAGE_SIZE, user_file);
+  fclose(user_file);
+  if (length < 0) {
+    printf("Error while reading rules file\n.");
+  } else {
+    driver_file_desc = open(CONNECTIONS_SYSFS_HOSTS_DRIVER_PATH, O_WRONLY);
+    if(driver_file_desc < 0) {
+      printf("Unable to open hosts driver: %s.\n", strerror(errno));
+      return -1;
+    }
+    return_status = write(driver_file_desc, output, length);
+  }
+  close(driver_file_desc);
+  printf("Done loading hosts.\n");
+  return return_status;
 }
 
 int main(int argc, char **argv) {
@@ -222,9 +265,12 @@ int main(int argc, char **argv) {
     return show_hosts();
   }
   if (strcmp(argv[1], "load_hosts") == 0) {
-    return show_hosts();
+    if(argc != 3) {
+      printf("ERROR: User must specify path to hosts file.\n");
+      return -1;
+    }
+    return load_hosts(argv[2]);
   }
-
   printf("ERROR: Unrecognized command.\n");
   return -1;
 }

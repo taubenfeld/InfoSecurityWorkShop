@@ -119,7 +119,6 @@ static int __init start_module(void) {
     printk(KERN_INFO "ERROR: Failed to register drivers\n");
     return -1;
   }
-  init_connections_list(); // TODO: Wrap this in a more appropriate manner.
   return 0;  // if non-0 return, then init_module have failed.
 }
 
