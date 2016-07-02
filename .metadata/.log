@@ -10391,3 +10391,23 @@ Caused by: org.eclipse.swt.SWTError: No more handles [Unknown Mozilla path (MOZI
 	at org.eclipse.swt.widgets.RunnableLock.run(RunnableLock.java:35)
 	at org.eclipse.swt.widgets.Synchronizer.runAsyncMessages(Synchronizer.java:134)
 	... 22 more
+!SESSION 2016-07-02 20:24:23.750 -----------------------------------------------
+eclipse.buildId=1.1.0.201411270007
+java.version=1.8.0_77
+java.vendor=Oracle Corporation
+BootLoader constants: OS=linux, ARCH=x86, WS=gtk, NL=en_US
+Framework arguments:  -linkplus.server.ip localhost -linkplus.server.port 80
+Command-line arguments:  -os linux -ws gtk -arch x86 -linkplus.server.ip localhost -linkplus.server.port 80
+
+!ENTRY org.eclipse.core.resources 2 10035 2016-07-02 20:24:27.549
+!MESSAGE The workspace exited with unsaved changes in the previous session; refreshing workspace to recover changes.
+!SESSION 2016-07-02 20:40:31.021 -----------------------------------------------
+eclipse.buildId=1.1.0.201411270007
+java.version=1.8.0_77
+java.vendor=Oracle Corporation
+BootLoader constants: OS=linux, ARCH=x86, WS=gtk, NL=en_US
+Framework arguments:  -linkplus.server.ip localhost -linkplus.server.port 80
+Command-line arguments:  -os linux -ws gtk -arch x86 -linkplus.server.ip localhost -linkplus.server.port 80
+
+!ENTRY org.eclipse.core.resources 2 10035 2016-07-02 20:40:35.233
+!MESSAGE The workspace exited with unsaved changes in the previous session; refreshing workspace to recover changes.

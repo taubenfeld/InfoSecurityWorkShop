@@ -33,6 +33,7 @@ typedef enum {
   TCP_NON_COMPLIANT            = -8,
   VALID_TCP_CONNECTION         = -12,
   TIME_OUT_EXPIRED             = -13,
+  BLOCKED_HOST                 = -14,
 } reason_t;
 
 

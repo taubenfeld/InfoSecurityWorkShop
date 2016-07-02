@@ -1,2 +1,0 @@
-/home/fw/Desktop/EX/EX3/Submission/link_workspace/Firewall/firewall.ko
-/home/fw/Desktop/EX/EX3/Submission/link_workspace/Firewall/fw_module.o /home/fw/Desktop/EX/EX3/Submission/link_workspace/Firewall/chardev_logs.o /home/fw/Desktop/EX/EX3/Submission/link_workspace/Firewall/chardev_info.o /home/fw/Desktop/EX/EX3/Submission/link_workspace/Firewall/chardev_rules.o /home/fw/Desktop/EX/EX3/Submission/link_workspace/Firewall/packets_handeling.o

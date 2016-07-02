@@ -80,7 +80,7 @@ connections_list_entry *find_connection(
       return cur_entry;
     }
   }
-  printk(KERN_INFO "Didn't find anything.");
+//  printk(KERN_INFO "Didn't find anything.");
   return NULL;
 }
 
@@ -176,10 +176,12 @@ char *extract_payload(struct sk_buff *skb, struct tcphdr *tcph) {
   return extracted_payload;
 }
 
-int is_host_in_blacklist(char hostname) {
+int is_host_in_blacklist(char *hostname) {
   hosts_list_entry *cur_entry;
   list_for_each_entry(cur_entry, &(hosts_list.list), list) {
-    if (strcmp(hostname, cur_entry->host_name)) {
+    printk(KERN_INFO "hostname [%s]\n", hostname);
+    printk(KERN_INFO "packet host name [%s], entry host name [%s]\n", hostname, cur_entry->host_name);
+    if (strcmp(hostname, cur_entry->host_name) == 0) {
       return 1;
     }
   }
@@ -192,23 +194,25 @@ int handle_http_connection(
   char *hostname, *temp_hostname;
   struct tcphdr *tcph = (struct tcphdr *)((__u32 *)ip_hdr(skb) + ip_hdr(skb)->ihl);
   payload = extract_payload(skb, tcph);
-
-  // We care only about GET requests. We accept all other traffic.
-  if (strnicmp(http_command, "GET", 3) == 0 ) {
+//  printk(KERN_INFO "payload = [%s].", payload);
+  // We only care about GET requests. We accept all other traffic.
+  if (strnicmp(payload, "GET", 3) == 0) {
+//    printk(KERN_INFO "\"GET\" found in payload.");
     temp_hostname = strstr(payload, "Host: ");
     if (temp_hostname != NULL) {
+//      printk(KERN_INFO "\"Host: \" found in payload.");
       temp_hostname = temp_hostname + 6; // Advance to the start of the host name.
-      hostname = strsep(temp_hostname, "\n");
+      hostname = strsep(&temp_hostname, "\r\n");
       if (is_host_in_blacklist(hostname)) {
-        printk(KERN_INFO "Host is in blacklist, blocking packet.");
+//        printk(KERN_INFO "Host is in blacklist, blocking packet.");
         *reason = BLOCKED_HOST;
+        kfree(payload);
         return NF_DROP;
       }
     }
   }
-
-  printk(KERN_INFO "payload = [%s].", payload);
   kfree(payload);
+  *reason = VALID_TCP_CONNECTION;
   return NF_ACCEPT;
 }
 
@@ -228,13 +232,13 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
 
   connection = find_connection(rule.src_ip, rule.src_port, rule.dst_ip, rule.dst_port);
   if (connection == NULL) {
-    if (syn && !ack) {
-      printk(KERN_INFO "Creating connection.");
+    if (!ack) {
+//      printk(KERN_INFO "Creating connection.");
       add_connection(rule.src_ip, rule.src_port, rule.dst_ip , rule.dst_port, 0 /* TODO frag */);
-      *reason = VALID_TCP_CONNECTION;
+      //*reason = VALID_TCP_CONNECTION;   In this case reason is set by the stateless firewall.
       return NF_ACCEPT;
     } else {
-      printk(KERN_INFO "Connection not exists.");
+//      printk(KERN_INFO "Connection not exists.");
       *reason = CONN_NOT_EXIST;
       return NF_DROP;
     }
@@ -244,9 +248,9 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
     case SENT_SYN_WAIT_SYNACK:
       printk(KERN_INFO "in SENT_SYN_WAIT_SYNACK.");
       if (ack && syn) {
-        printk(KERN_INFO "Received syn ack.");
+//        printk(KERN_INFO "Received syn ack.");
         if (is_timeout_expired(connection)) {
-          printk(KERN_INFO "Timeout expired, removing connection.");
+//          printk(KERN_INFO "Timeout expired, removing connection.");
           remove_connection(connection);
           *reason = TIME_OUT_EXPIRED;
           return NF_DROP;
@@ -258,9 +262,9 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
       break;
     case SENT_SYNACK_WAIT_ACK:
       if (ack && !syn) {
-        printk(KERN_INFO "Received ack.");
+//        printk(KERN_INFO "Received ack.");
         if (is_timeout_expired(connection)) {
-          printk(KERN_INFO "Timeout expired, removing connection.");
+//          printk(KERN_INFO "Timeout expired, removing connection.");
           remove_connection(connection);
           *reason = TIME_OUT_EXPIRED;
           return NF_DROP;
@@ -272,15 +276,17 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
       break;
     case ESTABLISHED:
       if (fin) {
-        printk(KERN_INFO "Received fin.");
+//        printk(KERN_INFO "Received fin.");
         connection->tcp_state = SENT_FIN_WAIT_FIN2;
         *reason = VALID_TCP_CONNECTION;
         return NF_ACCEPT;
       }
-      printk(KERN_INFO "Received normal packet after connection established.");
+//      printk(KERN_INFO "Received normal packet after connection established.");
       if (connection->protocol == FTP) {
         // TODO: ftp
         //return handle_ftp_connection(connection, reason);
+        *reason = VALID_TCP_CONNECTION;
+        return NF_ACCEPT;
       } else if (connection->protocol == HTTP) {
         return handle_http_connection(skb, connection, reason);
       } else {
@@ -289,7 +295,7 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
       }
     case SENT_FIN_WAIT_FIN2:
       if (fin) {
-        printk(KERN_INFO "Received fin2.");
+//        printk(KERN_INFO "Received fin2.");
         connection->tcp_state = SENT_FIN2_WAIT_ACK;
         *reason = VALID_TCP_CONNECTION;
         return NF_ACCEPT;
@@ -297,14 +303,14 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
       break;
     case SENT_FIN2_WAIT_ACK:
       if (ack) {
-        printk(KERN_INFO "Received final ack for fin removing connection.");
+//        printk(KERN_INFO "Received final ack for fin removing connection.");
         remove_connection(connection);
         *reason = VALID_TCP_CONNECTION;
         return NF_ACCEPT;
       }
       break;
   }
-  printk(KERN_INFO "Not a valid packet.");
+//  printk(KERN_INFO "Not a valid packet.");
   *reason = TCP_NON_COMPLIANT;
   return NF_DROP;
 }
@@ -400,6 +406,7 @@ ssize_t set_hosts(
     struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
   char *input;
   char *host_name;
+  clear_list_hosts();
   printk(KERN_INFO "In set hosts.\n");
   input = kmalloc(strlen(buf) + 2, GFP_ATOMIC);
   input[0] = 0;

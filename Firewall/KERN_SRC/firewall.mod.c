@@ -25,6 +25,7 @@ __attribute__((section("__versions"))) = {
 	{ 0xd0d8621b, "strlen" },
 	{ 0x77cb5806, "device_destroy" },
 	{ 0x121a120e, "__register_chrdev" },
+	{ 0x4e830a3e, "strnicmp" },
 	{ 0x85df9b6c, "strsep" },
 	{ 0xa90dd060, "nf_register_hook" },
 	{ 0xe2d5255a, "strcmp" },
@@ -32,6 +33,7 @@ __attribute__((section("__versions"))) = {
 	{ 0x42224298, "sscanf" },
 	{ 0x2f287f0d, "copy_to_user" },
 	{ 0xb4390f9a, "mcount" },
+	{ 0x1e6d26a8, "strstr" },
 	{ 0xb0f2df0b, "device_create" },
 	{ 0x61651be, "strcat" },
 	{ 0x969391b7, "device_create_file" },
@@ -45,7 +47,6 @@ __attribute__((section("__versions"))) = {
 	{ 0xaf243a97, "class_destroy" },
 	{ 0xa55d174, "__class_create" },
 	{ 0x5980dd50, "skb_copy_bits" },
-	{ 0xe914e41e, "strcpy" },
 };
 
 static const char __module_depends[]
@@ -54,4 +55,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "6D847EE3599343742FD5197");
+MODULE_INFO(srcversion, "E72CD9D1AF8B1F4B52A57BC");

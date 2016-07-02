@@ -145,7 +145,7 @@ int verify_packet(struct sk_buff *skb, int hooknum) {
   }
   else { // Verify packet with the stateless/stateful logic.
     // Validate TCP connection against stateless firewall iff it is the first packet (without ack).
-    if (new_rule.protocol != PROT_TCP || !new_rule.ack) {
+    if (new_rule.protocol != PROT_TCP || new_rule.ack != ACK_YES) {
       action = stateless_verification(new_rule, &reason);
     }
 

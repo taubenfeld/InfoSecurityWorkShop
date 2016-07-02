@@ -414,6 +414,9 @@ void get_string_from_reason(int reason, char buf[]) {
   case (TIME_OUT_EXPIRED):
     sprintf(buf, "%s", "TIME_OUT_EXPIRED");
     break;
+  case (BLOCKED_HOST):
+    sprintf(buf, "%s", "BLOCKED_HOST");
+    break;
   default:
     sprintf(buf, "%d", reason);
   }
