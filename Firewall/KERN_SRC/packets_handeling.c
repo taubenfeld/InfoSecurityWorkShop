@@ -151,9 +151,7 @@ int verify_packet(struct sk_buff *skb, int hooknum) {
 
     // Validate only TCP connection against stateful firewall, and only if the other checks passed.
     if (new_rule.protocol == PROT_TCP && action == NF_ACCEPT) {
-      action = validate_and_update_connection(
-          new_rule.src_ip, new_rule.src_port, new_rule.dst_ip, new_rule.dst_port, 0 /* TODO: fragment */,
-          new_rule.syn, new_rule.ack, new_rule.fin, new_rule.protocol, &reason);
+      action = validate_and_update_tcp_connection(skb, new_rule, &reason);
     }
   }
   add_log(skb->tstamp.tv64, new_rule.protocol, action, hooknum,
