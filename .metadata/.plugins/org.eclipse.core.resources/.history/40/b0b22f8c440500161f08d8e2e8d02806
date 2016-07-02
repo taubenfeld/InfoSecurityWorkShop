@@ -1,0 +1,116 @@
+#include "fw.h"
+
+log_row_t logs_list;
+
+int log_size = 0;
+
+
+char *LOGS_DEVICE_NAME = "fw_logs";
+
+int logs_device_major_number;
+struct device* logs_device_sysfs_device = NULL;
+struct file_operations logs_device_fops = {
+  .owner = THIS_MODULE
+};
+
+
+/***************************************************************************************************
+ * List handling methods.
+ **************************************************************************************************/
+
+
+void init_logs(void) {
+  LIST_HEAD(logs_list);
+}
+
+// TODO: Merge logs.
+void add_log(unsigned long timestamp, unsigned char protocol, unsigned char action,
+    unsigned char hooknum, __be32 src_ip, __be32 dst_ip, __be16 src_port, __be16 dst_port,
+    reason_t reason) {
+  log_row_t *new = kmalloc(sizeof(log_row_t), GFP_KERNEL);
+  new->timestamp = timestamp;
+  new->protocol = protocol;
+  new->action = action;
+  new->hooknum = hooknum;
+  new->src_ip = src_ip;
+  new->dst_ip = dst_ip;
+  new->src_port = src_port;
+  new->dst_port = dst_port;
+  new->reason = reason;
+  INIT_LIST_HEAD(&(new->list));
+  list_add(&(new->list), &logs_list.list);
+  log_size++;
+}
+// TODO: Verify that the first node is not removed.
+void clear_list(void) {
+  log_row_t *cur_entry;
+  struct list_head *cur_head, *temp;
+  list_for_each_safe(cur_head, temp, &logs_list.list) {
+    cur_entry = list_entry(cur_head, log_row_t, list);
+    list_del(cur_head);
+    kfree(cur_entry);
+  }
+  log_size = 0;
+}
+
+void show_logs(void) {
+  log_row_t *cur_entry;
+  list_for_each_entry(cur_entry, &logs_list.list, list) {
+    // TODO: print log.
+  }
+}
+
+int get_logs_size() {
+
+}
+
+/***************************************************************************************************
+ * Driver sysfs ops.
+ **************************************************************************************************/
+
+/*
+ * Register attribute for displace size.
+ * TODO: verify that NULL is appropriate.
+ */
+static DEVICE_ATTR(logs_size, S_IROTH , show, NULL);
+
+/***************************************************************************************************
+ * Registration methods
+ **************************************************************************************************/
+
+
+int register_logs_driver(struct class* fw_sysfs_class) {
+  // TODO: add fops for showing logs.
+  logs_device_major_number = register_chrdev(0, LOGS_DEVICE_NAME, &logs_device_fops);
+  if(logs_device_major_number < 0) {
+    return -1;
+  }
+
+  // Create sysfs device.
+  logs_device_sysfs_device = device_create(
+      fw_sysfs_class, NULL, MKDEV(logs_device_major_number, 0), NULL, LOGS_DEVICE_NAME);
+  if(IS_ERR(logs_device_sysfs_device)) {
+    unregister_chrdev(logs_device_major_number, LOGS_DEVICE_NAME);
+    return -1;
+  }
+
+  // Create sysfs file attributes .
+  if(device_create_file(logs_device_sysfs_device,
+      (const struct device_attribute*) &dev_attr_logs_size.attr)) {
+    device_destroy(fw_sysfs_class, MKDEV(logs_device_major_number, 0));
+    unregister_chrdev(logs_device_major_number, LOGS_DEVICE_NAME);
+    return -1;
+  }
+  return 0;
+}
+
+int remove_logs_device(struct class* fw_sysfs_class) {
+  clear_list();
+  device_remove_file(
+      logs_device_sysfs_device, (const struct device_attribute *)&dev_attr_logs_load_store.attr);
+  device_destroy(fw_sysfs_class, MKDEV(logs_device_major_number, 0));
+  unregister_chrdev(logs_device_major_number, LOGS_DEVICE_NAME);
+  return 0;
+}
+
+

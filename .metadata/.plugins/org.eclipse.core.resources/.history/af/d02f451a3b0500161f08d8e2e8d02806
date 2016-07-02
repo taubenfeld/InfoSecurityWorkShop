@@ -1,0 +1,29 @@
+#include <stdio.h>
+#include <linux/kernel.h>
+#include <string.h>
+
+// logging
+typedef struct {
+  unsigned long   timestamp;      // time of creation/update
+  unsigned char   protocol;       // values from: prot_t
+  unsigned char   action;         // valid values: NF_ACCEPT, NF_DROP
+  unsigned char   hooknum;        // as received from netfilter hook
+  int      src_ip;             // if you use this struct in userspace, change the type to unsigned int
+  unsigned int    count;          // counts this line's hits
+} log_row_t;
+
+int main() {
+  log_row_t row;
+  row.src_ip = 32;
+  printf("%d", row.src_ip);
+}
+
+//char *full_ip = "10.0.0.1/8";
+//char *base_ip;
+//if ((base_ip = strsep(&full_ip, "/")) == NULL) {
+//  printf("%s\n", "Failed to split the IP string.");
+//  return 0;
+//}
+//printf("Base IP = %s", base_ip);
+
+

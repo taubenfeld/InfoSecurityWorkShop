@@ -1,0 +1,47 @@
+
+#ifndef STATEFUL_H_
+#define STATEFUL_H_
+
+#include "fw.h"
+
+typedef enum {
+  TCP_HANDSHAKE     = 1,
+  TCP_ESTABLISH     = 2,
+  TCP_TERMINATED    = 3,
+
+  FTP_HANDSHAKE     = 4,
+  FTP_ESTABLISHED   = 5,
+  FTP_CONNECTED     = 6,
+  FTP_TRANSFER      = 7,
+  FTP_TERMINATED    = 8,
+
+  HTTP_HANDSHAKE    = 9,
+  HTTP_ESTABLISHED  = 10,
+  HTTP_CONNECTED    = 11,
+  HTTP_TERMINATED   = 12,
+} protocol_state;
+
+
+typedef enum {
+  SENT_SYN_WAIT_SYNACK   = 1,
+  SENT_SYNACK_WAIT_ACK   = 2,
+  ESTABLISHED            = 3,
+  TERMINATED             = 4,
+} tcp_state;
+
+typedef struct {
+  __be32          src_ip;
+  __be16          src_port;
+  __be32          dst_ip;
+  __be16          dst_port;
+  __u16           fragment;
+  tcp_state       tcp_state;
+  protocol_state  protocol_state;
+  unsigned long   timestamp;
+  struct list_head list;          /* kernel's list structure */
+} connections_list_entry;
+
+int validate_and_update_connection(__be32 src_ip, __be32 dst_ip, __be16 src_port, __be16 dst_port,
+    __u16 fragment, int syn, int ack, int fin, reason_t *reason);
+
+#endif /* STATEFUL_H_ */

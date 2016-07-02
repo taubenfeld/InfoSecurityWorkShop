@@ -1,0 +1,18 @@
+#include <stdio.h>
+#include <linux/kernel.h>
+#include <string.h>
+
+
+int main() {
+  char *full_ip = "10.0.0.1/8";
+  char *base_ip;
+  if ((base_ip = strsep(&full_ip, "/")) == NULL) {
+    printf("%s\n", "Failed to split the IP string.");
+    return 0;
+  }
+  printf("Base IP = %s", base_ip);
+}
+
+
+
+

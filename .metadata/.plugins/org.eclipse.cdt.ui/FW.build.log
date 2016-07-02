@@ -1,0 +1,7 @@
+
+**** Build of configuration Debug for project FW ****
+
+make --makefile=Makefile --directory=KERN_SRC modules 
+make: *** No rule to make target `modules'.  Stop.
+make: Entering directory `/home/fw/link_workspace/FW/KERN_SRC'
+make: Leaving directory `/home/fw/link_workspace/FW/KERN_SRC'

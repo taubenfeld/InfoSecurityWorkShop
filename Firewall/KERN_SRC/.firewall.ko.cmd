@@ -1,0 +1,1 @@
+cmd_/home/fw/link_workspace/Firewall/KERN_SRC/firewall.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-3.2.0-101-generic-pae/scripts/module-common.lds --build-id  -o /home/fw/link_workspace/Firewall/KERN_SRC/firewall.ko /home/fw/link_workspace/Firewall/KERN_SRC/firewall.o /home/fw/link_workspace/Firewall/KERN_SRC/firewall.mod.o

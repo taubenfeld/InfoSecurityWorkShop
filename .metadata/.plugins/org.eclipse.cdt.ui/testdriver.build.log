@@ -1,0 +1,14 @@
+
+**** Build of configuration Debug for project testdriver ****
+
+make --makefile=Makefile --directory=KERN_SRC modules 
+make: Entering directory `/home/fw/link_workspace/testdriver/KERN_SRC'
+make -C /lib/modules/3.2.0-101-generic-pae/build/ M=/home/fw/link_workspace/testdriver/KERN_SRC modules
+make[1]: Entering directory `/usr/src/linux-headers-3.2.0-101-generic-pae'
+  CC [M]  /home/fw/link_workspace/testdriver/KERN_SRC/testdriver.o
+  Building modules, stage 2.
+  MODPOST 1 modules
+  CC      /home/fw/link_workspace/testdriver/KERN_SRC/testdriver.mod.o
+  LD [M]  /home/fw/link_workspace/testdriver/KERN_SRC/testdriver.ko
+make[1]: Leaving directory `/usr/src/linux-headers-3.2.0-101-generic-pae'
+make: Leaving directory `/home/fw/link_workspace/testdriver/KERN_SRC'

@@ -1,0 +1,427 @@
+
+#include <string.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+//#include <linux/list.h>
+
+#include "rules_parser.h"
+
+char *RULES_DEVICE_NAME = "fw_rules";
+
+static int PORT_ANY_NUMBER = 1025;
+static int PORT_ERROR_NUMBER = 1026;
+
+static int IP_ANY = 0;
+static int ACTION_ERROR_NUMBER = 255;
+
+
+
+/***************************************************************************************************
+ * Local functions.
+***************************************************************************************************/
+
+/*
+ * Gets the direction enum value by string value.
+ * Returns 0 on failure.
+ */
+direction_t get_direction_from_string(char *direction_str) {
+  if (strcmp(direction_str, "in") == 0){
+    return DIRECTION_IN;
+  }
+  if (strcmp(direction_str, "out") == 0){
+    return DIRECTION_OUT;
+  }
+  if (strcmp(direction_str, "any") == 0){
+    return DIRECTION_ANY;
+  }
+  return 0;
+  printf("%s\n", "Failed to get direction from string");
+}
+
+/*
+ * Gets string representation of the direction enum.
+ * Returns NULL on failure.
+ */
+char *get_string_from_direction(direction_t direction) {
+  switch (direction) {
+  case DIRECTION_IN:
+    return "in";
+  case DIRECTION_OUT:
+    return "out";
+  case DIRECTION_ANY:
+    return "any";
+  default:
+    return NULL;
+  }
+}
+
+/*
+ * Gets the protocol enum value by string value.
+ * Returns 0 on failure.
+ */
+prot_t get_protocol_from_string(char *protocol) {
+  if (strcmp(protocol, "ICMP") == 0){
+    return PROT_ICMP;
+  }
+  if (strcmp(protocol, "TCP") == 0){
+    return PROT_TCP;
+  }
+  if (strcmp(protocol, "UDP") == 0){
+    return PROT_UDP;
+  }
+  if (strcmp(protocol, "OTHER") == 0){
+    return PROT_OTHER;
+  }
+  if (strcmp(protocol, "any") == 0){
+    return PROT_ANY;
+  }
+  return 0;
+  printf("%s\n", "Failed to get protocol from string");
+}
+
+/*
+ * Gets string representation of the protocol enum.
+ * Returns NULL on failure.
+ */
+char *get_string_from_protocol(prot_t protocol) {
+  switch (protocol) {
+  case PROT_ICMP:
+    return "ICMP";
+  case PROT_TCP:
+    return "TCP";
+  case PROT_UDP:
+    return "UDP";
+  case PROT_OTHER:
+    return "OTHER";
+  case PROT_ANY:
+    return "any";
+  default:
+    return NULL;
+  }
+}
+
+/*
+ * Gets the ack enum value by string value.
+ * Returns 0 on failure.
+ */
+ack_t get_ack_from_string(char *ack) {
+  if (strcmp(ack, "no") == 0) {
+    return ACK_NO;
+  }
+  if (strcmp(ack, "yes") == 0) {
+    return ACK_YES;
+  }
+  if (strcmp(ack, "any") == 0) {
+    return ACK_ANY;
+  }
+  printf("%s\n", "Failed to get ack from string");
+  return 0;
+}
+
+/*
+ * Gets string representation of the ack enum.
+ * Returns NULL on failure.
+ */
+char *get_string_from_ack(ack_t ack) {
+  switch (ack) {
+  case ACK_NO:
+    return "no";
+  case ACK_YES:
+    return "yes";
+  case ACK_ANY:
+    return "any";
+  default:
+    return NULL;
+  }
+}
+
+/*
+ * Get Netfiler's action value from string value.
+ */
+int get_action_from_string(char *action) {
+  if (strcmp(action, "accept") == 0){
+    return NF_ACCEPT;
+  }
+  if (strcmp(action, "drop") == 0){
+    return NF_DROP;
+  }
+  printf("%s\n", "Failed to get action from string.");
+  return ACTION_ERROR_NUMBER;
+}
+
+/*
+ * Get Netfiler's action value from string value.
+ */
+char *get_string_from_action(int action) {
+  switch (action) {
+  case NF_ACCEPT:
+    return "accept";
+  case NF_DROP:
+    return "drop";
+  default:
+    return NULL;
+  }
+}
+
+/*
+ * Parse the port from string to int.
+ * Returns 0 on failure.
+ */
+int parse_port_from_string(char *str_port) {
+  int result;
+  char *strtol_test;
+  if (strcmp(str_port, "any") == 0) {
+    return PORT_ANY_NUMBER;
+  }
+  if (str_port[0] == '>') {
+    result = strtol(str_port+1, &strtol_test, 10);
+    if ((str_port+1 != strtol_test) && result == PORT_ABOVE_1023) { // Success.
+      return result + 1;
+    }
+  }
+  else {
+    result = strtol(str_port+1, &strtol_test, 10);
+    if ((str_port+1 != strtol_test) && result <= PORT_ABOVE_1023) { // Success.
+      return result + 1;
+    }
+  }
+  printf("%s\n", "Failed to get port from string");
+  return PORT_ERROR_NUMBER;
+}
+
+/*
+ * Parse the port from int to string.
+ * Returns 0 on failure.
+ */
+void parse_string_from_port(int port, char target_str_port[]) {
+  if (port == PORT_ANY_NUMBER) {
+    sprintf(target_str_port, "%s", "any");
+  }
+  else if (port > PORT_ABOVE_1023) {
+    sprintf(target_str_port, "%s", ">1023");
+  }
+  else {
+    sprintf(target_str_port, "%d", port);
+  }
+}
+
+/*
+ * Parse IP base & mask.
+ * Returns 0 on failure.
+ */
+int parse_ips_from_string(char *full_ip_string, unsigned int *ip_base, unsigned char *mask_size) {
+  char *strtol_test;
+  char *ip_base_string;
+  struct sockaddr_in sock_in;
+
+  if (strcmp(full_ip_string, "any") == 0) {
+    *ip_base = IP_ANY;
+    *mask_size = 0;
+    return 1;
+  }
+
+  // The IP doesn't contains a mask size.
+  if (strchr(full_ip_string, '/') == NULL) {
+    // TODO: validate this.
+    if (!inet_aton(full_ip_string, &sock_in.sin_addr)) {
+      return 0;
+    }
+    *ip_base = sock_in.sin_addr.s_addr;
+    *mask_size = 0;
+    return 1;
+  }
+
+  // Parse the IP base. Split the base IP from the prefix.
+  // After using strsep full_ip_string will point to the prefix part.
+  if ((ip_base_string = strsep(&full_ip_string, "/")) == NULL) {
+    printf("%s\n", "Failed to split the IP string.");
+    return 0;
+  }
+
+  if (!inet_aton(ip_base_string, &sock_in.sin_addr)){
+    return 0;
+  }
+  *ip_base = sock_in.sin_addr.s_addr;
+
+  // Parse the IP prefix.
+  *mask_size = strtol(full_ip_string, &strtol_test, 10);
+  if (full_ip_string == strtol_test
+      || *mask_size < 0 || *mask_size > 32) {
+    printf("%s\n", "Mask size is not valid.");
+    return 0;
+  }
+  return 1;
+}
+
+/*
+ * Function that convert int IP to dot notation string IP.
+ * I took this function from: http://stackoverflow.com/questions/1680365/integer-to-ip-address-c.
+ */
+void int_ip_to_dot_ip(int ip, char str_ip[]) {
+    unsigned char bytes[4];
+    bytes[0] = ip & 0xFF;
+    bytes[1] = (ip >> 8) & 0xFF;
+    bytes[2] = (ip >> 16) & 0xFF;
+    bytes[3] = (ip >> 24) & 0xFF;
+    sprintf(str_ip, "%d.%d.%d.%d", bytes[0], bytes[1], bytes[2], bytes[3]);
+}
+
+void parse_string_from_ip(int ip_base, int mask_size, char target_str_ip[]) {
+  char mask_size_string[10] = {0};
+  if (ip_base == IP_ANY) {
+    sprintf(target_str_ip, "%s", "any");
+    return;
+  }
+  int_ip_to_dot_ip(ip_base, target_str_ip);
+  if (mask_size != 0) {
+    sprintf(mask_size_string, "/%d", mask_size);
+    strcat(target_str_ip, mask_size_string);
+  }
+}
+
+/*
+ * Parse a rule_t from a given string. On error returns 0.
+ * The caller function is responsible of freeing the returned pointer.
+ */
+rule_t *parse_rule_from_string(char* str_rule) {
+  rule_t *rule = malloc(sizeof(rule_t));
+  char direction[4] = {0};
+  char *src_ip_string =
+      malloc(20 * sizeof(char));            // 16 chars for ip and 3 for mask
+  char *dst_ip_string =
+      malloc(20 * sizeof(char));              // 16 chars for ip and 3 for mask
+  char protocol[6] = {0};                     // Longest protocol name is OTHER\0.
+  char src_port[6] = {0};
+  char dst_port[6] = {0};
+  char ack[4] = {0};
+  char action[7] = {0};
+  //TODO Make this secure.
+  scanf(str_rule, "%19.s %3.s %19.s %19.s %5.s %5.s %5.s %3.s %6.s\n",
+      rule->rule_name,
+      direction,
+      src_ip_string,
+      dst_ip_string,
+      protocol,
+      src_port,
+      dst_port,
+      ack,
+      action);
+
+  if (!(rule->direction = get_direction_from_string(direction))
+      || !(parse_ips_from_string(src_ip_string, &rule->src_ip, &rule->src_prefix_size))
+      || !(parse_ips_from_string(dst_ip_string, &rule->dst_ip, &rule->dst_prefix_size))
+      || !(rule->protocol = get_protocol_from_string(protocol))
+      || ((rule->src_port = parse_port_from_string(src_port)) == PORT_ERROR_NUMBER)
+      || ((rule->dst_port = parse_port_from_string(dst_port)) == PORT_ERROR_NUMBER)
+      || !(rule->ack = get_ack_from_string(ack))
+      || ((rule->action = get_action_from_string(action)) == ACTION_ERROR_NUMBER )) {
+    free(rule);
+    rule = NULL;
+  }
+  free(src_ip_string);
+  free(dst_ip_string);
+  return rule;
+}
+
+/*
+ * Parse a given rule into a string, and writes it to the buffer.
+ */
+int parse_string_from_rule(rule_t rule, char *buffer) {
+  char src_ip[20] = {0};
+  char dst_ip[20] = {0};
+  char src_port[6] = {0};
+  char dst_port[6] = {0};
+
+  parse_string_from_ip(rule.src_ip, rule.src_prefix_size, src_ip);
+  parse_string_from_ip(rule.dst_ip, rule.dst_prefix_size, dst_ip);
+  parse_string_from_port(rule.src_port, src_port);
+  parse_string_from_port(rule.dst_port, dst_port);
+
+  sprintf(buffer, "%s %s %s %s %s %s %s %s %s\n",
+      rule.rule_name,
+      get_string_from_direction(rule.direction),
+      src_ip,
+      dst_ip,
+      get_string_from_protocol(rule.protocol),
+      src_port,
+      dst_port,
+      get_string_from_ack(rule.ack),
+      get_string_from_action(rule.action));
+  return 0;
+}
+
+
+/***************************************************************************************************
+ * Public functions
+ **************************************************************************************************/
+
+
+
+/*
+ * Receives a buffer with rules in the user format, and return the rules raw format that is ready
+ * to be delivered to the kernel.
+ * The rules are validated and in case of an error EINVAL is returned.
+ */
+ssize_t get_rules(char *output) {
+  rule_t rule;
+  int i;
+  char input_string_rule[80] = {0}; // 80 bytes is more then enough for one rule.
+  char output_string_rule[80] = {0}; // 80 bytes is more then enough for one rule.
+
+  output[0] = 0; // Prepare buf for strcat.
+  for (i = 0; i < number_of_rules; i++) {
+    scanf(input_string_rule, "%s %u %u %u %u %u %u %u %u %u %u\n",
+        rule.rule_name,
+        rule.direction,
+        rule.src_ip,
+        rule.src_prefix_size,
+        rule.dst_ip,
+        rule.dst_prefix_size,
+        rule.protocol,
+        rule.src_port,
+        rule.dst_port,
+        rule.ack,
+        rule.action);
+    parse_string_from_rule(rule, output_string_rule);
+    strcat(output, output_string_rule);
+  }
+  printf("Done getting rules.\n");
+  return strlen(output);
+}
+
+/*
+ * Receives a buffer with rules in the user format, and return the rules raw format that is ready
+ * to be delivered to the kernel.
+ * The rules are validated and in case of an error EINVAL is returned.
+ */
+ssize_t set_rules(const char *buf, char *output) {
+  char *input_string_rules = (char *) buf;
+  char *input_string_rule;
+  rule_t *output_rule;
+  char output_string_rule[80]; // 80 bytes is more then enough for one rule.
+  output[0] = 0; // Prepare output for strcat.
+  while (input_string_rule = strsep(&input_string_rules, "\n")) {
+    number_of_rules ++;
+    if ((output_rule = parse_rule_from_string(input_string_rule)) == NULL) {
+      printf("Failed loading rule table: Invalid rule format.\n");
+      return EINVAL;
+    }
+    sprintf(output_string_rule, "%s %u %u %u %u %u %u %u %u %u %u",
+        output_rule->rule_name,
+        output_rule->direction,
+        output_rule->src_ip,
+        output_rule->src_prefix_size,
+        output_rule->dst_ip,
+        output_rule->dst_prefix_size,
+        output_rule->protocol,
+        output_rule->src_port,
+        output_rule->dst_port,
+        output_rule->ack,
+        output_rule->action);
+    strcat(output, output_string_rule);
+    free(output_rule);
+  }
+  printf("Done loading rules.\n");
+  return strlen(output);
+}
+

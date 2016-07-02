@@ -1,0 +1,73 @@
+#include <stdio.h>
+#include <linux/kernel.h>
+#include <string.h>
+
+// logging
+typedef struct {
+  unsigned long   timestamp;      // time of creation/update
+  unsigned char   protocol;       // values from: prot_t
+  unsigned char   action;         // valid values: NF_ACCEPT, NF_DROP
+  unsigned char   hooknum;        // as received from netfilter hook
+  __be32      src_ip;             // if you use this struct in userspace, change the type to unsigned int
+  __be32      dst_ip;             // if you use this struct in userspace, change the type to unsigned int
+  __be16      src_port;           // if you use this struct in userspace, change the type to unsigned short
+  __be16      dst_port;           // if you use this struct in userspace, change the type to unsigned short
+  reason_t      reason;           // rule#index, or values from: reason_t
+  unsigned int    count;          // counts this line's hits
+  struct list_head list;          /* kernel's list structure */
+} log_row_t;
+
+// TODO: Merge logs.
+void add_log(unsigned long timestamp, unsigned char protocol, unsigned char action,
+    unsigned char hooknum, __be32 src_ip, __be32 dst_ip, __be16 src_port, __be16 dst_port,
+    reason_t reason) {
+  log_row_t *new = kmalloc(sizeof(log_row_t), GFP_KERNEL);
+  INIT_LIST_HEAD(&(new->list));
+  new->timestamp = timestamp;
+  new->protocol = protocol;
+  new->action = action;
+  new->hooknum = hooknum;
+  new->src_ip = src_ip;
+  new->dst_ip = dst_ip;
+  new->src_port = src_port;
+  new->dst_port = dst_port;
+  new->reason = reason;
+  list_add_tail(&(new->list), &logs_list.list);
+  logs_size++;
+}
+
+int main() {
+  log_row_t cur_entry;
+  cur_entry->timestamp = 1;
+  cur_entry->protocol = 1;
+  cur_entry->action = 1;
+  cur_entry->hooknum = 1;
+  cur_entry->src_ip = 1;
+  cur_entry->dst_ip = 1;
+  cur_entry->src_port = 1;
+  cur_entry->dst_port = 1;
+  cur_entry->reason = 1;
+
+  scnprintf(temp_str_log, 180,
+      //"%-.19lu %-.19cu %-.19cu %-.19cu %-.19u %-.19u %-.19hu %-.19hu %-.19d\n",
+      "%-19.lu %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.d\n",
+      cur_entry->timestamp,
+      cur_entry->protocol,
+      cur_entry->action,
+      cur_entry->hooknum,
+      cur_entry->src_ip,
+      cur_entry->dst_ip,
+      cur_entry->src_port,
+      cur_entry->dst_port,
+      cur_entry->reason);
+}
+
+//char *full_ip = "10.0.0.1/8";
+//char *base_ip;
+//if ((base_ip = strsep(&full_ip, "/")) == NULL) {
+//  printf("%s\n", "Failed to split the IP string.");
+//  return 0;
+//}
+//printf("Base IP = %s", base_ip);
+
+

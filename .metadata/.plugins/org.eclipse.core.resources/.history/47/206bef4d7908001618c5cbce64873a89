@@ -1,0 +1,124 @@
+
+#include <linux/string.h>
+//#include <linux/list.h>
+
+#include "fw.h"
+
+char *RULES_DEVICE_NAME = "fw_rules";
+
+// TODO(amirt): What is the limit on the number of rules? Should it be a char or an int?
+static unsigned short number_of_rules;
+static rule_t rules_table[MAX_RULES];
+
+static int PORT_1023 = 1023; // All ports greater than 1023 should be treated equally.
+static int PORT_ANY_NUMBER = 1025;
+static int PORT_ERROR_NUMBER = 1026;
+
+static int IP_ANY = 0;
+
+static int ACTION_ERROR_NUMBER = 255;
+
+int rules_device_major_number;
+struct device* rules_device_sysfs_device = NULL;
+struct file_operations rules_device_fops = {
+  .owner = THIS_MODULE
+};
+
+
+
+
+
+/***************************************************************************************************
+ * Functions for sysfs attributes
+ **************************************************************************************************/
+
+
+
+
+ssize_t get_rules(struct device *dev,struct device_attribute *attr, char *buf) {
+  rule_t rule;
+  int i;
+  char str_rule[200] = {0}; // 200 bytes is more then enough for one rule.
+  printk(KERN_INFO "Number of rules = %hu\n", number_of_rules);
+  buf[0] = 0; // Prepare buf for strcat.
+  for (i = 0; i < number_of_rules; i++) {
+    rule = rules_table[i];
+    parse_string_from_rule(rule, str_rule, PAGE_SIZE);
+    printk(KERN_INFO "%s", str_rule);
+    strcat(buf, str_rule);
+  }
+  printk(KERN_INFO "Done getting rules.\n");
+  return PAGE_SIZE;
+}
+
+/*
+ * Sysfs store implementation.
+ * Sets the rules that are used by the sateless firewall.
+ */
+ssize_t set_rules(
+    struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
+  char *input_string_rule;
+  rule_t *output_rule;
+  while (sscanf(buf, "%s %u %u %u %u %u %u %u %u %u %u",
+        output_rule->rule_name,
+        output_rule->direction,
+        output_rule->src_ip,
+        output_rule->src_prefix_size,
+        output_rule->dst_ip,
+        output_rule->dst_prefix_size,
+        output_rule->protocol,
+        output_rule->src_port,
+        output_rule->dst_port,
+        output_rule->ack,
+        output_rule->action) == 11) {
+    strcat(output, output_string_rule);
+    free(output_rule);
+  }
+  printf("Done loading rules.\n");
+  return strlen(output);
+}
+
+static DEVICE_ATTR(rules_load_store, S_IRWXO , get_rules, set_rules);
+
+
+/***************************************************************************************************
+ * Registration methods
+ **************************************************************************************************/
+
+
+int register_rules_driver(struct class* fw_sysfs_class) {
+  // Create char device. fops is empty because we are using sysfs.
+  rules_device_major_number = register_chrdev(0, RULES_DEVICE_NAME, &rules_device_fops);
+  if(rules_device_major_number < 0) {
+    return -1;
+  }
+
+  // Create sysfs device.
+  rules_device_sysfs_device = device_create(
+          fw_sysfs_class, NULL, MKDEV(rules_device_major_number, 0), NULL, RULES_DEVICE_NAME);
+  if(IS_ERR(rules_device_sysfs_device)) {
+    unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    return -1;
+  }
+
+  // Create sysfs file attributes .
+  if(device_create_file(rules_device_sysfs_device,
+      (const struct device_attribute*) &dev_attr_rules_load_store.attr)) {
+    device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));
+    unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+    return -1;
+  }
+  return 0;
+}
+
+int remove_rules_device(struct class* fw_sysfs_class) {
+  if (rules_table != NULL) { // Rule table has been used before.
+    kfree(rules_table);
+  }
+  device_remove_file(
+      rules_device_sysfs_device, (const struct device_attribute *)&dev_attr_rules_load_store.attr);
+  device_destroy(fw_sysfs_class, MKDEV(rules_device_major_number, 0));
+  unregister_chrdev(rules_device_major_number, RULES_DEVICE_NAME);
+  return 0;
+}
+

@@ -1,0 +1,34 @@
+/*
+===============================================================================
+Driver Name		:		FW
+Author			:		AMIRT
+License			:		GPL
+Description		:		LINUX DEVICE DRIVER PROJECT
+===============================================================================
+*/
+
+#include"FW.h"
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("AMIRT");
+
+static int __init FW_init(void)
+{
+	/* TODO Auto-generated Function Stub */
+
+	PINFO("INIT\n");
+
+	return 0;
+}
+
+static void __exit FW_exit(void)
+{	
+	/* TODO Auto-generated Function Stub */
+
+	PINFO("EXIT\n");
+
+}
+
+module_init(FW_init);
+module_exit(FW_exit);
+

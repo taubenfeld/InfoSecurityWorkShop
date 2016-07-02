@@ -1,0 +1,17 @@
+/*
+ * rules_parser.h
+ *
+ *  Created on: Apr 19, 2016
+ *      Author: fw
+ */
+
+#ifndef RULES_PARSER_H_
+#define RULES_PARSER_H_
+
+class rules_parser {
+public:
+  rules_parser();
+  virtual ~rules_parser();
+};
+
+#endif /* RULES_PARSER_H_ */

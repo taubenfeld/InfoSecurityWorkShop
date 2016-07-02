@@ -1,0 +1,99 @@
+#include "stateful.h"
+
+connections_list_entry connections_list;
+int list_size = 0;
+
+
+/***************************************************************************************************
+ * List handling methods.
+ **************************************************************************************************/
+
+void add_connection(unsigned long timestamp, unsigned char protocol, unsigned char action,
+    unsigned char hooknum, __be32 src_ip, __be32 dst_ip, __be16 src_port, __be16 dst_port,
+    reason_t reason) {
+  connections_list_entry *cur_entry;
+  connections_list_entry *new;
+
+  struct timeval time;
+  do_gettimeofday(&time);
+
+  // Check if this log already exists.
+  list_for_each_entry(cur_entry, &(connections_list.list), list) {
+    if (cur_entry->protocol == protocol
+        && cur_entry->action == action
+        && cur_entry->hooknum == hooknum
+        && cur_entry->src_ip == src_ip
+        && cur_entry->dst_ip == dst_ip
+        && cur_entry->src_port == src_port
+        && cur_entry->dst_port == dst_port
+        && cur_entry->reason == reason) {
+      // We found an equal log, increment its count field and update its timestamp.
+      cur_entry->count++;
+      cur_entry->timestamp = time.tv_sec;
+      return;
+    }
+  }
+
+  // The log doesn't exists in the list. Create a new node.
+  // Note that it is important to use GFP_ATOMIC due to concurrency considerations.
+  new = kmalloc(sizeof(connections_list_entry), GFP_ATOMIC);
+  if (new == NULL) {
+    printk(KERN_INFO "ERROR: Failed to allocate space for new log. Not adding the current log.\n");
+    return;
+  }
+
+  INIT_LIST_HEAD(&(new->list));
+  new->timestamp = time.tv_sec;
+  new->protocol = protocol;
+  new->action = action;
+  new->hooknum = hooknum;
+  new->src_ip = src_ip;
+  new->dst_ip = dst_ip;
+  new->src_port = src_port;
+  new->dst_port = dst_port;
+  new->reason = reason;
+  new->count = 1;
+  list_add_tail(&(new->list), &connections_list.list);
+  list_size++;
+}
+
+connections_list_entry *find_connection(
+    __be32 src_ip, __be32 dst_ip, __be16 src_port, __be16 dst_port) {
+
+  list_for_each_entry(cur_entry, &(connections_list.list), list) {
+    if (cur_entry->protocol == protocol
+        && cur_entry->action == action
+        && cur_entry->hooknum == hooknum
+        && cur_entry->src_ip == src_ip
+        && cur_entry->dst_ip == dst_ip
+        && cur_entry->src_port == src_port
+        && cur_entry->dst_port == dst_port
+        && cur_entry->reason == reason) {
+      // We found an equal log, increment its count field and update its timestamp.
+      cur_entry->count++;
+      cur_entry->timestamp = time.tv_sec;
+      return;
+    }
+
+}
+
+void clear_connections_list(void) {
+  connections_list_entry *cur_entry, *temp;
+  if (list_empty(&(connections_list.list))) { // List is empty nothing to do.
+    return;
+  }
+  list_for_each_entry_safe(cur_entry, temp, &(connections_list.list), list) {
+    list_del(&(cur_entry->list));
+    kfree(cur_entry);
+  }
+  list_size = 0;
+}
+
+int get_list_size(void) {
+  return list_size;
+}
+
+void init_connections_list(void) {
+  INIT_LIST_HEAD(&connections_list.list);
+  list_size = 0;
+}

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;Firewall/KERN_SRC/chardevice_logs.c&apos; to &apos;chardev_logs.c&apos;" description="Rename resource &apos;chardevice_logs.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="KERN_SRC/chardevice_logs.c" name="chardev_logs.c" stamp="1460965223356" updateReferences="true"/>
+</session>

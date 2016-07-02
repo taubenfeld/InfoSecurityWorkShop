@@ -1,0 +1,4 @@
+make
+dmesg --clear
+sudo rmmod firewall.ko
+sudo insmod firewall.ko

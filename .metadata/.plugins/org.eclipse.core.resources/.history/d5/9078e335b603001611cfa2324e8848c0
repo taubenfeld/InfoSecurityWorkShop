@@ -1,0 +1,75 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <string.h>
+
+#include "fw.h"
+
+
+static char drive_path[] = "/dev/sysfs_class_sysfs_Device";
+
+direction_t get_direction(char *direction_str) {
+	if (strcmp(direction_str, "in")){
+		return DIRECTION_IN;
+	}
+	if (strcmp(direction_str, "out")){
+		return DIRECTION_OUT;
+	}
+//	if (strcmp(direction_str, "in")){
+//		return DIRECTION_ANY;
+//	}
+	return DIRECTION_ANY;
+}
+
+rule_t parse_rule(char* str_rule) {
+	rule_t rule = {{0}};
+	char name[20] = {0};
+	char direction[4] = {0};
+	char src_ip_string[20] = {0}; 	// 16 chars for ip and 3 for mask
+//	int src_mask_size;
+	char dst_ip_string[20] = {0}; 	// 16 chars for ip and 3 for mask
+//	int dst_mask_size;
+	char protocol[6] = {0}; 		// Longest protocol name is OTHER\0.
+	char src_port[6] = {0};
+	char dst_port[6] = {0};
+	char ack[4] = {0};
+	char action[7] = {0};
+
+
+	sscanf(str_rule, "%19s %3s %19s %19s %5s %5s %5s %3s %6s\n",
+			name,
+			direction,
+			src_ip_string,
+			dst_ip_string,
+			protocol,
+			src_port,
+			dst_port,
+			ack,
+			action);
+
+	// For debug.
+	printf("name: %s\n", name);
+	printf("direction: %s\n", direction);
+	printf("src_ip_string: %s\n", src_ip_string);
+	printf("dst_ip_string: %s\n", dst_ip_string);
+	printf("protocol: %s\n", protocol);
+	printf("src_port: %s\n", src_port);
+	printf("dst_port: %s\n", dst_port);
+	printf("ack: %s\n", ack);
+	printf("action: %s\n", action);
+
+	strcpy(rule.rule_name, name);
+
+	rule.direction = get_direction(direction);
+	return rule;
+}
+
+int main(int argc, char **argv) {
+	parse_rule("loopback any 127.0.0.1/8 127.0.0.1/8 any any any any accept");
+	return 0;
+}
+

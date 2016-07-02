@@ -1,0 +1,46 @@
+#include "fw.h"
+
+log_row_t logs_list;
+
+int log_size = 0;
+
+
+void init_logs(void) {
+  LIST_HEAD(logs_list);
+}
+
+void add_log(unsigned long timestamp, unsigned char protocol, unsigned char action,
+    unsigned char hooknum, __be32 src_ip, __be32 dst_ip, __be16 src_port, __be16 dst_port,
+    reason_t reason) {
+  log_row_t *new = kmalloc(sizeof(log_row_t), GFP_KERNEL);
+  new->timestamp = timestamp;
+  new->protocol = protocol;
+  new->action = action;
+  new->hooknum = hooknum;
+  new->src_ip = src_ip;
+  new->dst_ip = dst_ip;
+  new->src_port = src_port;
+  new->dst_port = dst_port;
+  new->reason = reason;
+  INIT_LIST_HEAD(&(new->list));
+  list_add(&(new->list), &logs_list.list);
+  log_size++;
+}
+// TODO: Verify that the first node is not removed.
+void clear_list(void) {
+  log_row_t *cur_entry;
+  struct list_head *cur_head, *temp;
+  list_for_each_safe(cur_head, temp, &logs_list.list) {
+    cur_entry = list_entry(cur_head, log_row_t, list);
+    list_del(cur_head);
+    kfree(cur_entry);
+  }
+  log_size = 0;
+}
+
+void show_logs(void) {
+  log_row_t *cur_entry;
+  list_for_each_entry(cur_entry, &logs_list.list, list) {
+
+  }
+}

@@ -1,0 +1,71 @@
+
+#ifndef STATEFUL_H_
+#define STATEFUL_H_
+
+#include "fw.h"
+
+typedef enum {
+  TCP_HANDSHAKE     = 1,
+  TCP_ESTABLISH     = 2,
+  TCP_TERMINATED    = 3,
+
+  FTP_HANDSHAKE     = 4,
+  FTP_ESTABLISHED   = 5,
+  FTP_CONNECTED     = 6,
+  FTP_TRANSFER      = 7,
+  FTP_TERMINATED    = 8,
+
+  HTTP_HANDSHAKE    = 9,
+  HTTP_ESTABLISHED  = 10,
+  HTTP_CONNECTED    = 11,
+  HTTP_TERMINATED   = 12,
+} protocol_state;
+
+
+typedef enum {
+  SENT_SYN_WAIT_SYNACK   = 1,
+  SENT_SYNACK_WAIT_ACK   = 2,
+  ESTABLISHED            = 3,
+  SENT_FIN_WAIT_FIN2     = 4,
+  SENT_FIN2_WAIT_ACK     = 5,
+} tcp_state;
+
+typedef enum {
+  HTTP  = 1,
+  FTP   = 2,
+  OTHER = 7,
+} transport_layer_protocol
+
+typedef struct {
+  __be32          src_ip;
+  __be16          src_port;
+  __be32          dst_ip;
+  __be16          dst_port;
+  __u8            protocol;         // values from: prot_t
+  __u16           fragment;
+  tcp_state       tcp_state;
+  protocol_state  protocol_state;
+  unsigned long   timestamp;
+  struct list_head list;          /* kernel's list structure */
+} connections_list_entry;
+
+typedef struct {
+  char *host_name;
+  struct list_head list;
+} hosts_list_entry;
+
+/*
+ * The size of each field in the connection entry when printing it.
+ */
+#define SIZE_OF_FIELD_BUFFER 20
+#define NUMBER_OF_FIELDS 8
+#define ROW_SIZE_AS_STRING SIZE_OF_FIELD_BUFFER * NUMBER_OF_FIELDS
+
+int register_connections_driver(struct class* fw_sysfs_class);
+
+int remove_connections_device(struct class* fw_sysfs_class);
+
+int validate_and_update_connection(__be32 src_ip, __be16 src_port, __be32 dst_ip, __be16 dst_port,
+    __u16 fragment, int syn, int ack, int fin, __u8 protocol, reason_t *reason);
+
+#endif /* STATEFUL_H_ */

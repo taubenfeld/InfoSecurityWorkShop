@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Rename resource &apos;Firewall/KERN_SRC/fw.h&apos; to &apos;firewall.h&apos;" description="Rename resource &apos;fw.h&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="KERN_SRC/fw.h" name="firewall.h" stamp="1461507825672" updateReferences="true"/>&#x0A;&#x0A;<refactoring comment="Rename resource &apos;Firewall/KERN_SRC/firewall.h&apos; to &apos;fw.h&apos;" description="Rename resource &apos;firewall.h&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="KERN_SRC/firewall.h" name="fw.h" stamp="1461508026372" updateReferences="true"/>
+</session>

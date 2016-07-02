@@ -1,0 +1,41 @@
+#include <stdio.h>
+#include <linux/kernel.h>
+#include <string.h>
+#include <linux/fs.h>
+
+void int_ip_to_dot_ip(int ip, char str_ip[]) {
+    unsigned char bytes[4];
+    bytes[0] = ip & 0xFF;
+    bytes[1] = (ip >> 8) & 0xFF;
+    bytes[2] = (ip >> 16) & 0xFF;
+    bytes[3] = (ip >> 24) & 0xFF;
+    sprintf(str_ip, "%d.%d.%d.%d", bytes[3], bytes[2], bytes[1], bytes[0]);
+}
+
+void parse_string_from_ip(int ip_base, int mask_size, char target_str_ip[]) {
+  char mask_string[10] = {0};
+  if (ip_base == 0) {
+    sprintf(target_str_ip, "%s", "any");
+  }
+  int_ip_to_dot_ip(ip_base, target_str_ip);
+  if (mask_size != 0) {
+    sprintf(mask_string, "/%d", mask_size);
+    strcat(target_str_ip, mask_string);
+  }
+}
+int main() {
+  char *full_ip = "100.1.2.34";
+  int base;
+  char src_ip[20] = {0};
+  in_aton(full_ip);
+  parse_string_from_ip(base, 0, src_ip);
+  return 0;
+}
+
+
+
+//  if ((base_ip = strsep(&full_ip, "/")) == NULL) {
+//    printf("%s\n", "Failed to split the IP string.");
+//    return 0;
+//  }
+//  printf("Base IP = %s", base_ip);

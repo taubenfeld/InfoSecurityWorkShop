@@ -1,0 +1,11 @@
+
+**** Build of configuration Debug for project WS ****
+
+make all 
+Building file: ../test.c
+Invoking: GCC C Compiler
+gcc -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"test.d" -MT"test.d" -o"test.o" "../test.c"
+In file included from ../test.c:6:0:
+../fw.h:5:24: fatal error: linux/slab.h: No such file or directory
+compilation terminated.
+make: *** [test.o] Error 1

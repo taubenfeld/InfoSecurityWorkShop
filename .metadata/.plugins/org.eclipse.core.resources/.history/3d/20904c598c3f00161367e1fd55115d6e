@@ -1,0 +1,436 @@
+#include "stateful.h"
+
+int connections_device_major_number;
+struct device* connections_sysfs_device = NULL;
+
+/**
+ * Variable that uses for the connections list.
+ */
+connections_list_entry connections_list;
+int connections_list_size = 0;
+char *connections_read_buffer;
+int remaining_num_of_bytes_to_read;
+char *pointer_to_current_location_in_connections_read_buffer;
+
+/**
+ * Variables for the hosts list.
+ */
+hosts_list_entry hosts_list;
+
+/***************************************************************************************************
+ * Private methods.
+ **************************************************************************************************/
+
+
+/**
+ * Adding a new connection with the given arguments. It is assumed that the caller already checked
+ * that this is a valid connection.
+ */
+void add_connection(
+    __be32 src_ip, __be16 src_port, __be32 dst_ip, __be16 dst_port, __u16 fragment, __u8 protocol) {
+  connections_list_entry *new;
+  struct timeval time;
+  do_gettimeofday(&time);
+
+  // Note that it is important to use GFP_ATOMIC due to concurrency considerations.
+  new = kmalloc(sizeof(connections_list_entry), GFP_ATOMIC);
+  if (new == NULL) {
+    printk(KERN_INFO "ERROR: Failed to allocate space for new connection."
+        " Not adding the current connection.\n");
+    return;
+  }
+  INIT_LIST_HEAD(&(new->list));
+  new->timestamp = time.tv_sec;
+  new->src_ip = src_ip;
+  new->dst_ip = dst_ip;
+  new->src_port = src_port;
+  new->dst_port = dst_port;
+  new->fragment = fragment;
+  new->protocol = protocol;
+  new->tcp_state = SENT_SYN_WAIT_SYNACK;
+
+  // TODO: Specify protocol.
+  list_add_tail(&(new->list), &connections_list.list);
+  connections_list_size++;
+}
+
+void add_host(char *name) {
+  hosts_list_entry *new;
+  int name_length = strlen(name);
+  if (name_length < 2) {
+    return;
+  }
+
+  // Note that it is important to use GFP_ATOMIC due to concurrency considerations.
+  new = kmalloc(sizeof(connections_list_entry), GFP_ATOMIC);
+  if (new == NULL) {
+    printk(KERN_INFO "ERROR: Failed to allocate space for new host. Not adding current host.\n");
+    return;
+  }
+  new->host_name = kmalloc(name_length + 1, GFP_ATOMIC);
+  if (new->host_name == NULL) {
+    kfree(new);
+    printk(KERN_INFO "ERROR: Failed to allocate space for host name. Not adding current host.\n");
+    return;
+  }
+  (new->host_name)[0] = 0;
+  strcpy(new->host_name, name);
+
+  INIT_LIST_HEAD(&(new->list));
+  list_add_tail(&(new->list), &connections_list.list);
+  connections_list_size++;
+}
+
+void remove_connection(connections_list_entry *entry) {
+  if (list_empty(&(connections_list.list))) { // List is empty nothing to do.
+    return;
+  }
+  list_del(&(entry->list));
+  kfree(entry);
+  connections_list_size--;
+}
+connections_list_entry *find_connection(
+    __be32 src_ip, __be16 src_port, __be32 dst_ip, __be16 dst_port) {
+  connections_list_entry *cur_entry;
+  list_for_each_entry(cur_entry, &(connections_list.list), list) {
+    if ((cur_entry->src_ip == src_ip && cur_entry->src_port == src_port
+        && cur_entry->dst_ip == dst_ip && cur_entry->dst_port == dst_port) ||
+        (cur_entry->src_ip == dst_ip && cur_entry->src_port == dst_port
+        && cur_entry->dst_ip == src_ip && cur_entry->dst_port == src_port)) {
+      return cur_entry;
+    }
+  }
+  printk(KERN_INFO "Didn't find anything.");
+  return NULL;
+}
+
+void get_connections_as_string(char *buff, int size) {
+  connections_list_entry *cur_entry;
+  char temp_str_connection[ROW_SIZE_AS_STRING + 1] = {0};
+  int cursize = 0;
+
+  list_for_each_entry(cur_entry, &(connections_list.list), list) {
+    cursize += scnprintf(temp_str_connection, ROW_SIZE_AS_STRING + 1,
+        "%u %u %u %u %u %u %u %lu\n",
+        cur_entry->src_ip,
+        cur_entry->src_port,
+        cur_entry->dst_ip,
+        cur_entry->dst_port,
+        cur_entry->protocol,
+        cur_entry->tcp_state,
+        cur_entry->protocol_state,
+        cur_entry->timestamp);
+    if (cursize >= size) {
+      return; // Can reach here only because of multi threading issues.
+    }
+    strcat(buff, temp_str_connection);
+  }
+}
+
+void clear_list_connections(void) {
+  connections_list_entry *cur_entry, *temp;
+  struct list_head *head = &(connections_list.list);
+  if (list_empty(head)) { // List is empty nothing to do.
+    return;
+  }
+  list_for_each_entry_safe(cur_entry, temp, head, list) {
+    list_del(&(cur_entry->list));
+    kfree(cur_entry);
+  }
+  connections_list_size = 0;
+}
+
+void clear_list_hosts(void) {
+  hosts_list_entry *cur_entry, *temp;
+  struct list_head *head = &(hosts_list.list);
+  if (list_empty(head)) { // List is empty nothing to do.
+    return;
+  }
+  list_for_each_entry_safe(cur_entry, temp, head, list) {
+    list_del(&(cur_entry->list));
+    kfree(cur_entry->host_name);
+    kfree(cur_entry);
+  }
+  connections_list_size = 0;
+}
+
+int is_timeout_expired(connections_list_entry *connection) {
+  struct timeval time;
+  do_gettimeofday(&time);
+  return (time.tv_sec - connection->timestamp) > 25;
+}
+
+/***************************************************************************************************
+ * Public methods.
+ **************************************************************************************************/
+
+
+int validate_and_update_connection(__be32 src_ip, __be16 src_port, __be32 dst_ip, __be16 dst_port,
+    __u16 fragment, int syn, int ack, int fin, __u8 protocol, reason_t *reason) {
+  connections_list_entry *connection = find_connection(src_ip, src_port, dst_ip, dst_port);
+
+
+  // Convert syn and ack to a more comfortable form.
+  syn = syn == ACK_YES ? 1 : 0;
+  ack = ack == ACK_YES ? 1 : 0;
+  fin = fin == ACK_YES ? 1 : 0;
+  if (connection == NULL) {
+    if (syn && !ack) {
+      printk(KERN_INFO "Creating connection.");
+      add_connection(src_ip, src_port, dst_ip , dst_port, fragment, protocol);
+      *reason = VALID_TCP_CONNECTION;
+      return NF_ACCEPT;
+    } else {
+      printk(KERN_INFO "Connection not exists.");
+      *reason = CONN_NOT_EXIST;
+      return NF_DROP;
+    }
+  }
+  switch (connection->tcp_state) {
+    case SENT_SYN_WAIT_SYNACK:
+      printk(KERN_INFO "in SENT_SYN_WAIT_SYNACK.");
+      if (ack && syn) {
+        printk(KERN_INFO "Received syn ack.");
+        if (is_timeout_expired(connection)) {
+          printk(KERN_INFO "Timeout expired, removing connection.");
+          remove_connection(connection);
+          *reason = TIME_OUT_EXPIRED;
+          return NF_DROP;
+        }
+        connection->tcp_state = SENT_SYNACK_WAIT_ACK;
+        *reason = VALID_TCP_CONNECTION;
+        return NF_ACCEPT;
+      }
+      break;
+    case SENT_SYNACK_WAIT_ACK:
+      if (ack && !syn) {
+        printk(KERN_INFO "Received ack.");
+        if (is_timeout_expired(connection)) {
+          printk(KERN_INFO "Timeout expired, removing connection.");
+          remove_connection(connection);
+          *reason = TIME_OUT_EXPIRED;
+          return NF_DROP;
+        }
+        connection->tcp_state = ESTABLISHED;
+        *reason = VALID_TCP_CONNECTION;
+        return NF_ACCEPT;
+      }
+      break;
+    case ESTABLISHED:
+      if (fin) {
+        printk(KERN_INFO "Received fin.");
+        connection->tcp_state = SENT_FIN_WAIT_FIN2;
+        *reason = VALID_TCP_CONNECTION;
+        return NF_ACCEPT;
+      }
+      if (!ack && !syn) {
+        printk(KERN_INFO "Received normal packet after connection established.");
+        // TODO: Handle protocol state.
+        *reason = VALID_TCP_CONNECTION;
+        return NF_ACCEPT;
+      }
+      break;
+    case SENT_FIN_WAIT_FIN2:
+      if (fin) {
+        printk(KERN_INFO "Received fin2.");
+        connection->tcp_state = SENT_FIN2_WAIT_ACK;
+        *reason = VALID_TCP_CONNECTION;
+        return NF_ACCEPT;
+      }
+      break;
+    case SENT_FIN2_WAIT_ACK:
+      if (ack) {
+        printk(KERN_INFO "Received final ack for fin removing connection.");
+        remove_connection(connection);
+        *reason = VALID_TCP_CONNECTION;
+        return NF_ACCEPT;
+      }
+      break;
+  }
+  printk(KERN_INFO "Not a valid packet.");
+  *reason = TCP_NON_COMPLIANT;
+  return NF_DROP;
+}
+
+
+/***************************************************************************************************
+ * Driver file operations.
+ **************************************************************************************************/
+
+/*
+ * Our custom open function for file_operations. Each time we open the device we initializing the
+ * changing variables (so we will be able to read it again and again).
+ *
+ * In this implementation we prepare the buffer that should be sent to the user.
+ */
+int open_connections_device(struct inode *_inode, struct file *_file) {
+
+  remaining_num_of_bytes_to_read =
+      (connections_list_size + 1) * ROW_SIZE_AS_STRING + 1;
+
+  // Prepare all the connections that should be written.
+  connections_read_buffer = kcalloc(remaining_num_of_bytes_to_read, 1, GFP_KERNEL);
+  if (connections_read_buffer == NULL) {
+    return -1;
+  }
+  pointer_to_current_location_in_connections_read_buffer = connections_read_buffer;
+
+  // Fill the buffer with the connections.
+  get_connections_as_string(connections_read_buffer, remaining_num_of_bytes_to_read);
+
+  return 0;
+}
+
+/*
+ * Implementation for the read method of file_operations.
+ */
+ssize_t read_connections(struct file *filp, char *buff, size_t length, loff_t *offp) {
+  ssize_t bytes_to_write_in_the_current_iteration =
+      (remaining_num_of_bytes_to_read < length) ? remaining_num_of_bytes_to_read : length;
+
+  // If nothing left to write return.
+  if (bytes_to_write_in_the_current_iteration == 0) {
+    return 0;
+  }
+
+  // Send the data to the user through 'copy_to_user'
+  if (copy_to_user(buff, pointer_to_current_location_in_connections_read_buffer,
+      bytes_to_write_in_the_current_iteration)) {
+    kfree(connections_read_buffer);
+    return -EFAULT;
+  } else {
+    // function succeeded, we just sent the user 'num_of_bytes' bytes, so we updating the counter
+    // and the string pointer index.
+    remaining_num_of_bytes_to_read -= bytes_to_write_in_the_current_iteration;
+    pointer_to_current_location_in_connections_read_buffer +=
+        bytes_to_write_in_the_current_iteration;
+    return bytes_to_write_in_the_current_iteration;
+  }
+}
+
+int release_connections_device(struct inode *inode, struct file *file) {
+  kfree(connections_read_buffer);
+  return 0;
+}
+
+/*
+ * File operations for the connections device.
+ */
+static struct file_operations connections_device_fops = {
+  .owner = THIS_MODULE,
+  .open = open_connections_device,
+  .read = read_connections,
+  .release = release_connections_device
+};
+
+
+/***************************************************************************************************
+ * Functions for sysfs attributes
+ **************************************************************************************************/
+
+
+ssize_t get_hosts(struct device *dev, struct device_attribute *attr, char *buf) {
+  hosts_list_entry *cur_entry;
+  buf[0] = 0;
+  list_for_each_entry(cur_entry, &(hosts_list.list), list) {
+    strcat(buf, cur_entry->host_name);
+  }
+  return strlen(buf);
+}
+
+ssize_t set_hosts(
+    struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
+  char *input;
+  char *host_name;
+  input[0] = 0;
+  strcat(input, buf);
+  strcat(input, "\n"); // Add \n to the last line.
+  while (strlen(host_name = strsep(&input, "\n")) > 0) {
+    if (input == NULL) {
+      printf("Invalid format: There is a line that doesn't end with \\n. \n.");
+      clear_list_hosts();
+      break;
+    }
+    add_host(host_name);
+  }
+  return count;
+}
+
+static DEVICE_ATTR(hosts_load_store, S_IRWXO , get_hosts, set_hosts);
+
+/*
+ * Sysfs clear connections implementation.
+ */
+ssize_t sysfs_clear_connections(
+    struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
+  char c;
+  int returnValue;
+  if((returnValue = sscanf(buf, "%c", &c)) == 1) {
+    clear_list_connections();
+  }
+  printk(KERN_INFO "Done clearing connections\n");
+  return returnValue;
+}
+
+/*
+ * Register ops.
+ */
+static DEVICE_ATTR(connections_clear, S_IWOTH , NULL, sysfs_clear_connections);
+
+
+/***************************************************************************************************
+ * Registration methods.
+ **************************************************************************************************/
+
+
+int register_connections_driver(struct class* fw_sysfs_class) {
+  connections_device_major_number =
+      register_chrdev(0, DEVICE_NAME_CONNECTIONS, &connections_device_fops);
+  if(connections_device_major_number < 0) {
+    return -1;
+  }
+
+  // Create sysfs device.
+  connections_sysfs_device = device_create(fw_sysfs_class, NULL,
+      MKDEV(connections_device_major_number, 0), NULL, DEVICE_NAME_CONNECTIONS);
+  if(IS_ERR(connections_sysfs_device)) {
+    unregister_chrdev(connections_device_major_number, DEVICE_NAME_CONNECTIONS);
+    return -1;
+  }
+
+  // Create sysfs hosts attribute.
+  if(device_create_file(connections_sysfs_device,
+      (const struct device_attribute*) &dev_attr_hosts_load_store.attr)) {
+    device_destroy(fw_sysfs_class, MKDEV(connections_device_major_number, 0));
+    unregister_chrdev(connections_device_major_number, DEVICE_NAME_CONNECTIONS);
+    return -1;
+  }
+
+  // Create sysfs clear connections attribute.
+  if(device_create_file(connections_sysfs_device,
+      (const struct device_attribute*) &dev_attr_connections_clear.attr)) {
+    device_remove_file(connections_sysfs_device,
+        (const struct device_attribute *)&dev_attr_hosts_load_store.attr);
+    device_destroy(fw_sysfs_class, MKDEV(connections_device_major_number, 0));
+    unregister_chrdev(connections_device_major_number, DEVICE_NAME_CONNECTIONS);
+    return -1;
+  }
+  // Initialize the lists.
+  INIT_LIST_HEAD(&connections_list.list);
+  INIT_LIST_HEAD(&hosts_list.list);
+  connections_list_size = 0;
+  return 0;
+}
+
+int remove_connections_device(struct class* fw_sysfs_class) {
+  clear_list_connections();
+  clear_list_hosts();
+  device_remove_file(connections_sysfs_device,
+      (const struct device_attribute *)&dev_attr_connections_clear.attr);
+  device_remove_file(connections_sysfs_device,
+      (const struct device_attribute *)&dev_attr_hosts_load_store.attr);
+  device_destroy(fw_sysfs_class, MKDEV(connections_device_major_number, 0));
+  unregister_chrdev(connections_device_major_number, DEVICE_NAME_CONNECTIONS);
+  return 0;
+}
+

@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Rename resource &apos;Firewall/src&apos; to &apos;KERN_SRC&apos;" description="Rename resource &apos;src&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src" name="KERN_SRC" stamp="1467031388575" updateReferences="true"/>&#x0A;<refactoring comment="Rename resource &apos;Firewall/KERN_SRC/stateful&apos; to &apos;stateful.c&apos;" description="Rename resource &apos;stateful&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="KERN_SRC/stateful" name="stateful.c" stamp="1467100284573" updateReferences="true"/>
+</session>

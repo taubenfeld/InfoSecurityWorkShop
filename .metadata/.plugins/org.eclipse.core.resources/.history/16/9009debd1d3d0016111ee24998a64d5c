@@ -1,0 +1,2 @@
+./main activate
+./main load_rules rule_file_original

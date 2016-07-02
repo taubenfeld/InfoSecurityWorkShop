@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;FW/KERN_SRC/FW.c&apos; to &apos;fw_mod.c&apos;" description="Rename resource &apos;FW.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="KERN_SRC/FW.c" name="fw_mod.c" stamp="1460753305675" updateReferences="true"/>
+</session>

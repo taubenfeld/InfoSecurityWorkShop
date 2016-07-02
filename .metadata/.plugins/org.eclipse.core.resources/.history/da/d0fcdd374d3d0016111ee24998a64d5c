@@ -1,0 +1,94 @@
+#include "stateful.h"
+
+connections_list_entry connections_list;
+int list_size = 0;
+
+
+/***************************************************************************************************
+ * List handling methods.
+ **************************************************************************************************/
+
+void add_connection(__be32 src_ip, __be16 src_port, __be32 dst_ip, __be16 dst_port, __u16 id,
+    __u16 fragment, tcp_state protocol, protocol_state  type) {
+  connections_list_entry *cur_entry;
+  connections_list_entry *new;
+  struct timeval time;
+  do_gettimeofday(&time);
+
+  // Note that it is important to use GFP_ATOMIC due to concurrency considerations.
+  new = kmalloc(sizeof(connections_list_entry), GFP_ATOMIC);
+  if (new == NULL) {
+    printk(KERN_INFO "ERROR: Failed to allocate space for new log. Not adding the current log.\n");
+    return;
+  }
+
+  INIT_LIST_HEAD(&(new->list));
+  new->timestamp = time.tv_sec;
+  new->src_ip = src_ip;
+  new->dst_ip = dst_ip;
+  new->src_port = src_port;
+  new->dst_port = dst_port;
+  new->id = id;
+  new->fragment = fragment;
+
+
+  if (dst_port == 21 || src_port == 21){
+    if(!ack_state && syn_state)
+      new_conn->protocol=tcp_SYN_SENT_WAIT_SYN_ACK;
+    if (ack_state && syn_state)
+      new_conn->protocol=tcp_SYN_ACK_SENT_WAIT_ACK;
+    new_conn->type = FTP_HANDSHAKE;
+  }
+  else if (ntohs(packet.dst_port) == 80 || ntohs(packet.src_port) == 80){
+    if(!ack_state && syn_state)
+      new_conn->protocol=tcp_SYN_SENT_WAIT_SYN_ACK;
+    if (ack_state && syn_state)
+      new_conn->protocol=tcp_SYN_ACK_SENT_WAIT_ACK;
+    new_conn->type = HTTP_HANDSHAKE;
+  }
+  else {
+    if(!ack_state && syn_state)
+      new_conn->protocol=tcp_SYN_SENT_WAIT_SYN_ACK;
+    if (ack_state && syn_state)
+      new_conn->protocol=tcp_SYN_ACK_SENT_WAIT_ACK;
+    new_conn->type = TCP_GEN_HANDSHAKE;
+  }
+
+  list_add_tail(&(new->list), &connections_list.list);
+  list_size++;
+}
+
+connections_list_entry *find_connection(
+    __be32 src_ip, __be32 dst_ip, __be16 src_port, __be16 dst_port) {
+  connections_list_entry *cur_entry;
+  list_for_each_entry(cur_entry, &(connections_list.list), list) {
+    if (cur_entry->src_ip == src_ip
+        && cur_entry->dst_ip == dst_ip
+        && cur_entry->src_port == src_port
+        && cur_entry->dst_port == dst_port) {
+      return cur_entry;
+    }
+  }
+  return NULL;
+}
+
+void clear_connections_list(void) {
+  connections_list_entry *cur_entry, *temp;
+  if (list_empty(&(connections_list.list))) { // List is empty nothing to do.
+    return;
+  }
+  list_for_each_entry_safe(cur_entry, temp, &(connections_list.list), list) {
+    list_del(&(cur_entry->list));
+    kfree(cur_entry);
+  }
+  list_size = 0;
+}
+
+int get_list_size(void) {
+  return list_size;
+}
+
+void init_connections_list(void) {
+  INIT_LIST_HEAD(&connections_list.list);
+  list_size = 0;
+}

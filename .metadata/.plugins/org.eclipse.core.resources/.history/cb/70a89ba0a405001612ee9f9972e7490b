@@ -1,0 +1,61 @@
+#include <stdio.h>
+#include <linux/kernel.h>
+#include <string.h>
+
+typedef enum {
+  REASON_FW_INACTIVE           = -1,
+  REASON_NO_MATCHING_RULE      = -2,
+  REASON_XMAS_PACKET           = -4,
+  REASON_ILLEGAL_VALUE         = -6,
+} reason_t;
+
+// logging
+typedef struct {
+  unsigned long   timestamp;      // time of creation/update
+  unsigned char   protocol;       // values from: prot_t
+  unsigned char   action;         // valid values: NF_ACCEPT, NF_DROP
+  unsigned char   hooknum;        // as received from netfilter hook
+  int      src_ip;             // if you use this struct in userspace, change the type to unsigned int
+  int      dst_ip;             // if you use this struct in userspace, change the type to unsigned int
+  short      src_port;           // if you use this struct in userspace, change the type to unsigned short
+  short      dst_port;           // if you use this struct in userspace, change the type to unsigned short
+  reason_t      reason;           // rule#index, or values from: reason_t
+  unsigned int    count;          // counts this line's hits
+} log_row_t;
+
+
+int main() {
+  log_row_t cur_entry;
+  cur_entry.timestamp = 1;
+  cur_entry.protocol = 1;
+  cur_entry.action = 1;
+  cur_entry.hooknum = 1;
+  cur_entry.src_ip = 1;
+  cur_entry.dst_ip = 1;
+  cur_entry.src_port = 1;
+  cur_entry.dst_port = 1;
+  cur_entry.reason = 1;
+
+  printf(
+      //"%-.19lu %-.19cu %-.19cu %-.19cu %-.19u %-.19u %-.19hu %-.19hu %-.19d\n",
+      "%-19.lu %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.u %-19.d\n",
+      cur_entry.timestamp,
+      cur_entry.protocol,
+      cur_entry.action,
+      cur_entry.hooknum,
+      cur_entry.src_ip,
+      cur_entry.dst_ip,
+      cur_entry.src_port,
+      cur_entry.dst_port,
+      cur_entry.reason);
+}
+
+//char *full_ip = "10.0.0.1/8";
+//char *base_ip;
+//if ((base_ip = strsep(&full_ip, "/")) == NULL) {
+//  printf("%s\n", "Failed to split the IP string.");
+//  return 0;
+//}
+//printf("Base IP = %s", base_ip);
+
+

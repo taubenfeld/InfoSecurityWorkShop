@@ -1,0 +1,162 @@
+#include "packets_handeling.h"
+
+int create_rule_from_packet(struct sk_buff *skb, rule_t *new_rule, int hooknum) {
+  char *device_name;
+  struct iphdr *iph;
+  struct udphdr *udph;
+  struct tcphdr *tcph;
+  iph = ip_hdr(skb);
+  new_rule->src_ip = iph->saddr;
+  new_rule->dst_ip = iph->daddr;
+  new_rule->protocol = iph->protocol;
+  new_rule->ack = ACK_NO; // This is overridden in case it is a TCP protocol.
+
+  // Set direction according to the net device.
+  new_rule->direction = DIRECTION_ANY; // This is overridden in case the net device is eth0/eth1.
+  device_name = skb->dev->name;
+  // This is a packet that is coming from the outer network so direction is IN.
+  if (strcmp(device_name, OUT_NET_DEVICE_NAME) == 0 && hooknum == NF_INET_PRE_ROUTING) {
+    new_rule->direction = DIRECTION_IN;
+  }
+  // This is a packet that is going to the inner network so direction is IN.
+  if (strcmp(device_name, IN_NET_DEVICE_NAME) == 0 && hooknum == NF_INET_POST_ROUTING) {
+    new_rule->direction = DIRECTION_IN;
+  }
+  // This is a packet that is coming from the inner network so direction is OUT.
+  if (strcmp(device_name, IN_NET_DEVICE_NAME) == 0 && hooknum == NF_INET_PRE_ROUTING) {
+    new_rule->direction = DIRECTION_OUT;
+  }
+  // This is a packet that is going to the outer network so direction is OUT.
+  if (strcmp(device_name, OUT_NET_DEVICE_NAME) == 0 && hooknum == NF_INET_POST_ROUTING) {
+    new_rule->direction = DIRECTION_OUT;
+  }
+
+  switch (new_rule->protocol) {
+  case PROT_TCP:
+    tcph  = (struct tcphdr *)((__u32 *)iph + iph->ihl);
+    new_rule->src_port = ntohs(tcph->source);
+    new_rule->dst_port = ntohs(tcph->dest);
+    //printk(KERN_INFO "new_rule->src_port: %d\n", new_rule->src_port);
+    //printk(KERN_INFO "new_rule->dst_port: %d\n", new_rule->dst_port);
+    new_rule->ack = tcph->ack ? ACK_YES : ACK_NO;
+    // Check X_MAS_PACKET
+    if (tcph->fin && tcph->urg && tcph->psh) {
+      return REASON_XMAS_PACKET;
+    }
+    break;
+  case PROT_UDP:
+    udph = (struct udphdr *)((__u32 *)iph + iph->ihl);
+    new_rule->src_port = ntohs(udph->source);
+    new_rule->dst_port = ntohs(udph->dest);
+    break;
+  case PROT_ICMP: // ICMP doesn't uses port. TODO(amirt): validate that this is what expected.
+  case PROT_OTHER:
+  case PROT_ANY:
+    // This will match iff the the port in the rule is any.
+    new_rule->src_port = PORT_ANY;
+    new_rule->dst_port = PORT_ANY;
+  }
+  return 0;
+}
+
+int ports_match(int rule_port, int table_rule_port) {
+  return (table_rule_port == PORT_ANY_NUMBER)
+      || ((table_rule_port > PORT_ABOVE_1023) && (rule_port > PORT_ABOVE_1023))
+      || (table_rule_port == rule_port);
+}
+
+int ips_match(int rule_ip, int table_rule_ip, int mask) {
+  printk(KERN_INFO "table_rule_ip: %u\n",  table_rule_ip);
+  printk(KERN_INFO "rule_ip: %u\n",  rule_ip);
+  printk(KERN_INFO "mask: %u\n",  mask);
+  printk(KERN_INFO "table_rule_ip&mask: %u\n",  table_rule_ip&mask);
+  printk(KERN_INFO "rule_ip&mask: %u\n",  rule_ip&mask);
+  return (table_rule_ip == IP_ANY) || ((table_rule_ip&mask) == (rule_ip&mask));
+}
+
+/*
+ * Check if a given rule matches a given table rule.
+ */
+int match_rule_aginst_table_rule(rule_t rule, rule_t table_rule) {
+  if (!(rule.direction & table_rule.direction)) {
+    //printk(KERN_INFO "%s\n", "Direction don't match");
+    return 0;
+  }
+  if (table_rule.protocol != PROT_ANY && rule.protocol != table_rule.protocol) {
+    //printk(KERN_INFO "%s\n", "protocol don't match");
+    return 0;
+  }
+  if (!(rule.ack & table_rule.ack)) {
+    //printk(KERN_INFO "%s\n", "ack don't match");
+    return 0;
+  }
+  if (!(ports_match(rule.src_port, table_rule.src_port))) {
+    printk(KERN_INFO "%s\n", "src_port don't match");
+    return 0;
+  }
+  if (!(ports_match(rule.dst_port, table_rule.dst_port))) {
+    printk(KERN_INFO "%s\n", "dst_port don't match");
+    return 0;
+  }
+  if (!(ips_match(rule.src_ip, table_rule.src_ip, table_rule.src_prefix_mask))) {
+    //printk(KERN_INFO "%s\n", "src_ip don't match");
+    return 0;
+  }
+  if (!(ips_match(rule.dst_ip, table_rule.dst_ip, table_rule.dst_prefix_mask))) {
+    //printk(KERN_INFO "%s\n", "dst_ip don't match");
+    return 0;
+  }
+  //printk(KERN_INFO "%s\n", "packet matched all fields.");
+  return 1;
+}
+
+int stateless_verification(struct rule_t *new_rule, reason_t *reason) {
+  int i;
+  rule_t table_rule;
+  int action = NF_ACCEPT;
+  *reason = REASON_NO_MATCHING_RULE;
+
+  // Search for a matching rule.
+  for (i = 0; i < number_of_rules; i++) {
+    table_rule = rules_table[i];
+    if (match_rule_aginst_table_rule(*new_rule, table_rule)) {
+      action = table_rule.action;
+      *reason = i; // Packet matched rule, the reason should be the rule number.
+      break;
+    }
+  }
+  return action;
+}
+
+int verify_packet(struct sk_buff *skb, int hooknum) {
+  int status;
+  rule_t new_rule;
+  int action = NF_ACCEPT;
+  reason_t reason;
+
+  status = create_rule_from_packet(skb, &new_rule, hooknum);
+  if (firewall_rule_checking_status == STATUS_NOT_ACTIVE) {
+    reason = REASON_FW_INACTIVE;
+    action = NF_ACCEPT;
+  }
+  else if (status < 0) {
+    reason = REASON_XMAS_PACKET;
+    action = NF_DROP;
+  }
+  else { // Verify packet with the stateless/stateful logic.
+
+    if (!new_rule.ack) { // This is a new connection check it statically.
+      action = stateless_verification(&new_rule, &reason);
+    }
+    // Validate against the stateful firewall only no check failed until now.
+    if (action == NF_ACCEPT) {
+      validate_and_update_connection(new_rule.src_ip, new_rule.dst_ip, new_rule.src_port,
+          new_rule.dst_port, ip_hdr(skb)->id, 0 /* TODO: fragment */, new_rule.syn, new_rule.ack, &reason);
+    }
+  }
+
+  add_log(skb->tstamp.tv64, new_rule.protocol, action, hooknum,
+      new_rule.src_ip, new_rule.dst_ip, new_rule.src_port, new_rule.dst_port, reason);
+  return action;
+}
+
