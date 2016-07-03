@@ -89,6 +89,17 @@ char *get_string_from_protocol(prot_t protocol) {
   }
 }
 
+char *get_string_from_app_protocol(application_layer_protocol protocol) {
+  switch (protocol) {
+  case HTTP:
+    return "HTTP";
+  case FTP:
+    return "FTP";
+  default:
+    return "OTHER";
+  }
+}
+
 char *get_string_from_tcp_state(tcp_state state) {
   switch (state) {
   case SENT_SYN_WAIT_SYNACK:
@@ -125,18 +136,16 @@ char *get_string_from_tcp_state(tcp_state state) {
 
 
 char *get_string_from_protocol_state(protocol_state state) {
-//  switch (protocol) {
-//  case PROT_ICMP:
-//    return "ICMP";
-//  case PROT_TCP:
-//    return "TCP";
-//  case PROT_UDP:
-//    return "UDP";
-//  case PROT_ANY:
-//    return "any";
-//  default:
-//    return "OTHER";
-//  }
+  switch (state) {
+  case TCP_ESTABLISH:
+    return "TCP_ESTABLISH";
+  case FTP_CONNECTED:
+    return "FTP_CONNECTED";
+  case FTP_TERMINATED:
+    return "FTP_TERMINATED";
+  default:
+    return "OTHER";
+  }
   return "NOT YET IMPLEMENTED";
 }
 
@@ -462,7 +471,7 @@ ssize_t parse_string_from_connection(connections_list_entry conn, char *output_s
       conn.src_port,
       dst_ip,
       conn.dst_port,
-      get_string_from_protocol(conn.protocol),
+      get_string_from_app_protocol(conn.protocol),
       get_string_from_tcp_state(conn.tcp_state),
       get_string_from_protocol_state(conn.protocol_state));
   return 0;

@@ -91,11 +91,11 @@ int match_rule_aginst_table_rule(rule_t rule, rule_t table_rule) {
     return 0;
   }
   if (!(ports_match(rule.src_port, table_rule.src_port))) {
-    printk(KERN_INFO "%s\n", "src_port don't match");
+//    printk(KERN_INFO "%s\n", "src_port don't match");
     return 0;
   }
   if (!(ports_match(rule.dst_port, table_rule.dst_port))) {
-    printk(KERN_INFO "%s\n", "dst_port don't match");
+//    printk(KERN_INFO "%s\n", "dst_port don't match");
     return 0;
   }
   if (!(ips_match(rule.src_ip, table_rule.src_ip, table_rule.src_prefix_mask))) {
@@ -147,8 +147,19 @@ int verify_packet(struct sk_buff *skb, int hooknum) {
     // Validate TCP connection against stateless firewall iff it is the first packet (without ack).
     if (new_rule.protocol != PROT_TCP || new_rule.ack != ACK_YES) {
       action = stateless_verification(new_rule, &reason);
+      if (action == NF_ACCEPT) {
+        printk(KERN_INFO "Passed regular stateless check.\n");
+      }
     }
-
+    // In case it is a FTP DATA connection the validate against the FTP connections table.
+    if (action != NF_ACCEPT && new_rule.protocol == PROT_TCP && new_rule.ack != ACK_YES &&
+        (new_rule.src_port == FTP_DATA_PORT || new_rule.dst_port == FTP_DATA_PORT)) {
+      printk(KERN_INFO "Searching in the FTP table.");
+      action = ftp_initial_verification(new_rule, &reason);
+      if (action == NF_ACCEPT) {
+        printk(KERN_INFO "Passed FTP stateless check.\n");
+      }
+    }
     // Validate only TCP connection against stateful firewall, and only if the other checks passed.
     if (new_rule.protocol == PROT_TCP && action == NF_ACCEPT) {
       action = validate_and_update_tcp_connection(skb, new_rule, &reason);

@@ -13,6 +13,12 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 
+typedef enum {
+  FTP_DATA_PORT = 20,
+  FTP_PORT = 21,
+  HTTP_PORT = 80,
+} special_ports;
+
 // the protocols we will work with
 typedef enum {
 	PROT_ICMP	= 1,

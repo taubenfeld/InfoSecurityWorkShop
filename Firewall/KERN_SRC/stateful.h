@@ -5,20 +5,9 @@
 #include "fw.h"
 
 typedef enum {
-  TCP_HANDSHAKE     = 1,
-  TCP_ESTABLISH     = 2,
-  TCP_TERMINATED    = 3,
-
-  FTP_HANDSHAKE     = 4,
-  FTP_ESTABLISHED   = 5,
-  FTP_CONNECTED     = 6,
-  FTP_TRANSFER      = 7,
-  FTP_TERMINATED    = 8,
-
-  HTTP_HANDSHAKE    = 9,
-  HTTP_ESTABLISHED  = 10,
-  HTTP_CONNECTED    = 11,
-  HTTP_TERMINATED   = 12,
+  TCP_ESTABLISH   = 1,
+  FTP_CONNECTED     = 2,
+  FTP_TERMINATED    = 3,
 } protocol_state;
 
 
@@ -66,5 +55,7 @@ int register_connections_driver(struct class* fw_sysfs_class);
 int remove_connections_device(struct class* fw_sysfs_class);
 
 int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_t *reason);
+
+int ftp_initial_verification(rule_t rule, reason_t *reason);
 
 #endif /* STATEFUL_H_ */

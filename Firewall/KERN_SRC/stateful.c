@@ -17,16 +17,33 @@ char *pointer_to_current_location_in_connections_read_buffer;
  */
 hosts_list_entry hosts_list;
 
+/**
+ * Variables for the FTP connections list.
+ * This list holds all the connections that are open for FTP data connection.
+ */
+connections_list_entry ftp_connections_list;
+
 /***************************************************************************************************
  * Private methods.
  **************************************************************************************************/
 
+/*
+ * Uses just for debugging.
+ */
+int count_connections(struct list_head *head) {
+  connections_list_entry *cur_entry;
+  int i = 0;
+  list_for_each_entry(cur_entry, head, list) {
+    i++;
+  }
+  return i;
+}
 
 /**
  * Adding a new connection with the given arguments. It is assumed that the caller already checked
  * that this is a valid connection.
  */
-void add_connection(
+int add_connection(struct list_head *head,
     __be32 src_ip, __be16 src_port, __be32 dst_ip, __be16 dst_port, __u16 fragment) {
   connections_list_entry *new;
   struct timeval time;
@@ -37,7 +54,7 @@ void add_connection(
   if (new == NULL) {
     printk(KERN_INFO "ERROR: Failed to allocate space for new connection."
         " Not adding the current connection.\n");
-    return;
+    return -1;
   }
   INIT_LIST_HEAD(&(new->list));
   new->timestamp = time.tv_sec;
@@ -49,30 +66,33 @@ void add_connection(
   new->tcp_state = SENT_SYN_WAIT_SYNACK;
 
   // Determine protocol.
-  if (src_port == 21 || dst_port == 21) {
+  if (src_port == FTP_PORT || dst_port == FTP_PORT) {
     new->protocol = FTP;
-  } else if (src_port == 80 || dst_port == 80) {
+  } else if (src_port == HTTP_PORT || dst_port == HTTP_PORT) {
     new->protocol = HTTP;
-  } else{
+  } else {
     new->protocol = OTHER;
   }
+  list_add_tail(&(new->list), head);
 
-  list_add_tail(&(new->list), &connections_list.list);
-  connections_list_size++;
+  printk(KERN_INFO "Done adding connection: src port[%u], dst port[%u]\n",  src_port, dst_port);
+  printk(KERN_INFO "Current list size [%u]\n",  count_connections(head));
+  return 1;
 }
 
-void remove_connection(connections_list_entry *entry) {
-  if (list_empty(&(connections_list.list))) { // List is empty nothing to do.
-    return;
+int remove_connection(struct list_head *head, connections_list_entry *entry) {
+  if (list_empty(head)) { // List is empty nothing to do.
+    return 0;
   }
   list_del(&(entry->list));
   kfree(entry);
-  connections_list_size--;
+  return 1;
 }
-connections_list_entry *find_connection(
+
+connections_list_entry *find_connection(struct list_head *head,
     __be32 src_ip, __be16 src_port, __be32 dst_ip, __be16 dst_port) {
   connections_list_entry *cur_entry;
-  list_for_each_entry(cur_entry, &(connections_list.list), list) {
+  list_for_each_entry(cur_entry, head, list) {
     if ((cur_entry->src_ip == src_ip && cur_entry->src_port == src_port
         && cur_entry->dst_ip == dst_ip && cur_entry->dst_port == dst_port) ||
         (cur_entry->src_ip == dst_ip && cur_entry->src_port == dst_port
@@ -107,9 +127,8 @@ void get_connections_as_string(char *buff, int size) {
   }
 }
 
-void clear_list_connections(void) {
+void clear_list_connections(struct list_head *head) {
   connections_list_entry *cur_entry, *temp;
-  struct list_head *head = &(connections_list.list);
   if (list_empty(head)) { // List is empty nothing to do.
     return;
   }
@@ -179,8 +198,8 @@ char *extract_payload(struct sk_buff *skb, struct tcphdr *tcph) {
 int is_host_in_blacklist(char *hostname) {
   hosts_list_entry *cur_entry;
   list_for_each_entry(cur_entry, &(hosts_list.list), list) {
-    printk(KERN_INFO "hostname [%s]\n", hostname);
-    printk(KERN_INFO "packet host name [%s], entry host name [%s]\n", hostname, cur_entry->host_name);
+    //printk(KERN_INFO "hostname [%s]\n", hostname);
+    //printk(KERN_INFO "packet host name [%s], entry host name [%s]\n", hostname, cur_entry->host_name);
     if (strcmp(hostname, cur_entry->host_name) == 0) {
       return 1;
     }
@@ -216,10 +235,72 @@ int handle_http_connection(
   return NF_ACCEPT;
 }
 
+int handle_ftp_connection(struct sk_buff *skb, connections_list_entry *connection, reason_t *reason){
+  int server_ip, full_ip, full_port, ip_part_1, ip_part_2, ip_part_3, ip_part_4, port1, port2;
+  char* payload;
+  struct tcphdr *tcph = (struct tcphdr *)((__u32 *)ip_hdr(skb) + ip_hdr(skb)->ihl);
+  payload = extract_payload(skb, tcph);
+
+  switch (connection->protocol_state){
+    case TCP_ESTABLISH:
+      if (strnicmp(payload, "230", 3) == 0) {
+        connection->protocol_state = FTP_CONNECTED;
+      }
+      break;
+    case FTP_CONNECTED:
+      if (strnicmp(payload, "PORT", 4) == 0) {
+        sscanf(payload, "PORT %d,%d,%d,%d,%d,%d",
+            &ip_part_1, &ip_part_2, &ip_part_3, &ip_part_4, &port1, &port2);
+        // TODO: validate that I don't need to use ntohl or whatever...
+        full_ip = htonl((ip_part_1<<24) + (ip_part_2<<16) + (ip_part_3<<8) + ip_part_4);
+        full_port = (port1 * 256) + port2;
+
+        // Open a connection on the requested port.
+        server_ip = ip_hdr(skb)->daddr;
+        if (find_connection(&(ftp_connections_list.list),
+            full_ip, full_port, server_ip, FTP_DATA_PORT) == NULL) {
+          printk(KERN_INFO "Adding new FTP connection to FTP list for port [%u].", full_port);
+          add_connection(
+              &(ftp_connections_list.list), full_ip, full_port, server_ip, FTP_DATA_PORT, 0); // TODO fragment.
+        }
+      }
+      break;
+    case FTP_TERMINATED:
+      // If ftp terminated accept only goodbye message (status 221) or tcp with fin.
+      if (strnicmp(payload, "221", 3) != 0 && !tcph->fin){
+        *reason = TCP_NON_COMPLIANT;
+        return NF_DROP;
+      }
+      break;
+  }
+  if (strnicmp(payload, "QUIT", 4) == 0) {
+    connection->protocol_state = FTP_TERMINATED;
+  }
+  *reason = VALID_TCP_CONNECTION;
+  return NF_ACCEPT;
+}
+
 /***************************************************************************************************
  * Public methods.
  **************************************************************************************************/
 
+int ftp_initial_verification(rule_t rule, reason_t *reason) {
+  connections_list_entry *connection;
+  printk(KERN_INFO "FTP connections count in the begging of ftp_initial_verification = [%u].", count_connections(&(ftp_connections_list.list)));
+  connection = find_connection(
+      &(ftp_connections_list.list), rule.src_ip, rule.src_port, rule.dst_ip, rule.dst_port);
+  if (connection == NULL) {
+    printk(KERN_INFO "Did not find connection in the FTP table.");
+    *reason = REASON_NO_MATCHING_RULE;
+    return NF_DROP;
+  } else {
+    // Note that if we find such connection we remove it.
+    printk(KERN_INFO "Removing FTP connection.");
+    remove_connection(&(ftp_connections_list.list), connection);
+    *reason = VALID_TCP_CONNECTION;
+    return NF_ACCEPT;
+  }
+}
 
 int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_t *reason) {
   connections_list_entry *connection;
@@ -230,11 +311,15 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
   ack = rule.ack == ACK_YES ? 1 : 0;
   fin = rule.fin == ACK_YES ? 1 : 0;
 
-  connection = find_connection(rule.src_ip, rule.src_port, rule.dst_ip, rule.dst_port);
+  connection = find_connection(&(connections_list.list),
+      rule.src_ip, rule.src_port, rule.dst_ip, rule.dst_port);
   if (connection == NULL) {
     if (!ack) {
 //      printk(KERN_INFO "Creating connection.");
-      add_connection(rule.src_ip, rule.src_port, rule.dst_ip , rule.dst_port, 0 /* TODO frag */);
+      if (add_connection(&connections_list.list,
+          rule.src_ip, rule.src_port, rule.dst_ip , rule.dst_port, 0 /* TODO frag */) > 0){
+        connections_list_size++;
+      }
       //*reason = VALID_TCP_CONNECTION;   In this case reason is set by the stateless firewall.
       return NF_ACCEPT;
     } else {
@@ -251,7 +336,9 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
 //        printk(KERN_INFO "Received syn ack.");
         if (is_timeout_expired(connection)) {
 //          printk(KERN_INFO "Timeout expired, removing connection.");
-          remove_connection(connection);
+          if (remove_connection(&connections_list.list, connection) < 0) {
+            connections_list_size--;
+          }
           *reason = TIME_OUT_EXPIRED;
           return NF_DROP;
         }
@@ -265,11 +352,14 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
 //        printk(KERN_INFO "Received ack.");
         if (is_timeout_expired(connection)) {
 //          printk(KERN_INFO "Timeout expired, removing connection.");
-          remove_connection(connection);
+          if (remove_connection(&connections_list.list, connection) < 0) {
+            connections_list_size--;
+          }
           *reason = TIME_OUT_EXPIRED;
           return NF_DROP;
         }
         connection->tcp_state = ESTABLISHED;
+        connection->protocol_state = TCP_ESTABLISH;
         *reason = VALID_TCP_CONNECTION;
         return NF_ACCEPT;
       }
@@ -283,10 +373,7 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
       }
 //      printk(KERN_INFO "Received normal packet after connection established.");
       if (connection->protocol == FTP) {
-        // TODO: ftp
-        //return handle_ftp_connection(connection, reason);
-        *reason = VALID_TCP_CONNECTION;
-        return NF_ACCEPT;
+        return handle_ftp_connection(skb, connection, reason);
       } else if (connection->protocol == HTTP) {
         return handle_http_connection(skb, connection, reason);
       } else {
@@ -304,7 +391,9 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
     case SENT_FIN2_WAIT_ACK:
       if (ack) {
 //        printk(KERN_INFO "Received final ack for fin removing connection.");
-        remove_connection(connection);
+        if (remove_connection(&connections_list.list, connection) < 0) {
+          connections_list_size--;
+        }
         *reason = VALID_TCP_CONNECTION;
         return NF_ACCEPT;
       }
@@ -412,15 +501,15 @@ ssize_t set_hosts(
   input[0] = 0;
   strcat(input, buf);
   strcat(input, "\n"); // Add \n to the last line.
-  printk(KERN_INFO "buf: [%s]\n", buf);
-  printk(KERN_INFO "input: [%s]\n", input);
+//  printk(KERN_INFO "buf: [%s]\n", buf);
+//  printk(KERN_INFO "input: [%s]\n", input);
   while (strlen(host_name = strsep(&input, "\n")) > 0) {
     if (input == NULL) {
       printk(KERN_INFO "Invalid format: There is a line that doesn't end with \\n. \n.");
       clear_list_hosts();
       break;
     }
-    printk(KERN_INFO "add host [%s]", host_name);
+    //printk(KERN_INFO "add host [%s]", host_name);
     add_host(host_name);
   }
   kfree(input);
@@ -437,7 +526,7 @@ ssize_t sysfs_clear_connections(
   char c;
   int returnValue;
   if((returnValue = sscanf(buf, "%c", &c)) == 1) {
-    clear_list_connections();
+    clear_list_connections(&(connections_list.list));;
   }
   printk(KERN_INFO "Done clearing connections\n");
   return returnValue;
@@ -488,13 +577,15 @@ int register_connections_driver(struct class* fw_sysfs_class) {
   }
   // Initialize the lists.
   INIT_LIST_HEAD(&connections_list.list);
+  INIT_LIST_HEAD(&ftp_connections_list.list);
   INIT_LIST_HEAD(&hosts_list.list);
   connections_list_size = 0;
   return 0;
 }
 
 int remove_connections_device(struct class* fw_sysfs_class) {
-  clear_list_connections();
+  clear_list_connections(&(connections_list.list));
+  clear_list_connections(&(ftp_connections_list.list));
   clear_list_hosts();
   device_remove_file(connections_sysfs_device,
       (const struct device_attribute *)&dev_attr_connections_clear.attr);

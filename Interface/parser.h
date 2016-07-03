@@ -22,7 +22,6 @@ typedef enum {
   PROT_ANY  = 143,
 } prot_t;
 
-
 // various reasons to be registered in each log entry
 typedef enum {
   REASON_FW_INACTIVE           = -1,
@@ -106,22 +105,16 @@ typedef struct {
  **************************************************************************************************/
 
 typedef enum {
-  TCP_HANDSHAKE     = 1,
-  TCP_ESTABLISH     = 2,
-  TCP_TERMINATED    = 3,
+  HTTP  = 1,
+  FTP   = 2,
+  OTHER = 7,
+} application_layer_protocol;
 
-  FTP_HANDSHAKE     = 4,
-  FTP_ESTABLISHED   = 5,
-  FTP_CONNECTED     = 6,
-  FTP_TRANSFER      = 7,
-  FTP_TERMINATED    = 8,
-
-  HTTP_HANDSHAKE    = 9,
-  HTTP_ESTABLISHED  = 10,
-  HTTP_CONNECTED    = 11,
-  HTTP_TERMINATED   = 12,
+typedef enum {
+  TCP_ESTABLISH     = 1,
+  FTP_CONNECTED     = 2,
+  FTP_TERMINATED    = 3,
 } protocol_state;
-
 
 typedef enum {
   SENT_SYN_WAIT_SYNACK   = 1,
