@@ -43,8 +43,8 @@ int count_connections(struct list_head *head) {
  * Adding a new connection with the given arguments. It is assumed that the caller already checked
  * that this is a valid connection.
  */
-int add_connection(struct list_head *head,
-    __be32 src_ip, __be16 src_port, __be32 dst_ip, __be16 dst_port, __u16 fragment) {
+int add_connection(
+    struct list_head *head, __be32 src_ip, __be16 src_port, __be32 dst_ip, __be16 dst_port) {
   connections_list_entry *new;
   struct timeval time;
   do_gettimeofday(&time);
@@ -62,7 +62,6 @@ int add_connection(struct list_head *head,
   new->dst_ip = dst_ip;
   new->src_port = src_port;
   new->dst_port = dst_port;
-  new->fragment = fragment;
   new->tcp_state = SENT_SYN_WAIT_SYNACK;
 
   // Determine protocol.
@@ -241,6 +240,26 @@ int handle_ftp_connection(struct sk_buff *skb, connections_list_entry *connectio
   struct tcphdr *tcph = (struct tcphdr *)((__u32 *)ip_hdr(skb) + ip_hdr(skb)->ihl);
   payload = extract_payload(skb, tcph);
 
+  // Handle tcp fragmentation. In case there is not fragmentation all this block is useless.
+  if (strstr(payload, "\r\n") == NULL) { // This packet is fragmented. FTP command must end with \r\n.
+    if (strlen(payload) + strlen(connection->payload) > MAX_ACCUMULATED_PAYLOAD - 1) { // too long.
+      connection->payload[0] = 0; // Truncate the accumulated payload.
+      *reason = TCP_NON_COMPLIANT;
+      kfree(payload);
+      return NF_DROP; // Not a valid command. (too long).
+    } else {
+      strcat(connection->payload, payload);
+      *reason = VALID_TCP_CONNECTION;
+      kfree(payload);
+      return NF_ACCEPT;
+    }
+  } else if (strlen(connection->payload) > 0) { // Prefix the current payload with the accumulated payload.
+      strncat(connection->payload, payload, MAX_ACCUMULATED_PAYLOAD - 1);
+      kfree(payload);
+      payload = kcalloc(strlen(connection->payload), sizeof(char) ,GFP_ATOMIC);
+      connection->payload[0] = 0; // Truncate the accumulated payload.
+  }
+
   switch (connection->protocol_state){
     case TCP_ESTABLISH:
       if (strnicmp(payload, "230", 3) == 0) {
@@ -261,7 +280,7 @@ int handle_ftp_connection(struct sk_buff *skb, connections_list_entry *connectio
             full_ip, full_port, server_ip, FTP_DATA_PORT) == NULL) {
           printk(KERN_INFO "Adding new FTP connection to FTP list for port [%u].", full_port);
           add_connection(
-              &(ftp_connections_list.list), full_ip, full_port, server_ip, FTP_DATA_PORT, 0); // TODO fragment.
+              &(ftp_connections_list.list), full_ip, full_port, server_ip, FTP_DATA_PORT);
         }
       }
       break;
@@ -269,6 +288,7 @@ int handle_ftp_connection(struct sk_buff *skb, connections_list_entry *connectio
       // If ftp terminated accept only goodbye message (status 221) or tcp with fin.
       if (strnicmp(payload, "221", 3) != 0 && !tcph->fin){
         *reason = TCP_NON_COMPLIANT;
+        kfree(payload);
         return NF_DROP;
       }
       break;
@@ -277,6 +297,7 @@ int handle_ftp_connection(struct sk_buff *skb, connections_list_entry *connectio
     connection->protocol_state = FTP_TERMINATED;
   }
   *reason = VALID_TCP_CONNECTION;
+  kfree(payload);
   return NF_ACCEPT;
 }
 
@@ -317,7 +338,7 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
     if (!ack) {
 //      printk(KERN_INFO "Creating connection.");
       if (add_connection(&connections_list.list,
-          rule.src_ip, rule.src_port, rule.dst_ip , rule.dst_port, 0 /* TODO frag */) > 0){
+          rule.src_ip, rule.src_port, rule.dst_ip , rule.dst_port) > 0){
         connections_list_size++;
       }
       //*reason = VALID_TCP_CONNECTION;   In this case reason is set by the stateless firewall.

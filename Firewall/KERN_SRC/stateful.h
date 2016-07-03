@@ -4,6 +4,7 @@
 
 #include "fw.h"
 
+#define MAX_ACCUMULATED_PAYLOAD 300
 typedef enum {
   TCP_ESTABLISH   = 1,
   FTP_CONNECTED     = 2,
@@ -31,8 +32,8 @@ typedef struct {
   __be32          dst_ip;
   __be16          dst_port;
   __u8            protocol;         // values from: application_layer_protocol
-  __u16           fragment;
   tcp_state       tcp_state;
+  char            payload[MAX_ACCUMULATED_PAYLOAD]; // Uses in fragmenation. 300 is a reasonable max len for payload.
   protocol_state  protocol_state;
   unsigned long   timestamp;
   struct list_head list;          /* kernel's list structure */
