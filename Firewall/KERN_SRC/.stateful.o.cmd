@@ -885,6 +885,8 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/stateful.o := \
   include/asm-generic/module.h \
   include/trace/events/module.h \
   include/trace/define_trace.h \
+  /home/fw/link_workspace/Firewall/KERN_SRC/dlp.h \
+  include/linux/ctype.h \
 
 /home/fw/link_workspace/Firewall/KERN_SRC/stateful.o: $(deps_/home/fw/link_workspace/Firewall/KERN_SRC/stateful.o)
 

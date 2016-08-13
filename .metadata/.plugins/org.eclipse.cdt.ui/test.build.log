@@ -2,4 +2,16 @@
 **** Build of configuration Debug for project test ****
 
 make all 
-make: Nothing to be done for `all'.
+Building file: ../dlpp.c
+Invoking: GCC C Compiler
+gcc -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"dlpp.d" -MT"dlpp.d" -o"dlpp.o" "../dlpp.c"
+../dlpp.c: In function ‘main’:
+../dlpp.c:103:3: warning: implicit declaration of function ‘printf’ [-Wimplicit-function-declaration]
+../dlpp.c:103:3: warning: incompatible implicit declaration of built-in function ‘printf’ [enabled by default]
+Finished building: ../dlpp.c
+ 
+Building target: test
+Invoking: GCC C Linker
+gcc  -o"test"  ./dlpp.o   
+Finished building target: test
+ 

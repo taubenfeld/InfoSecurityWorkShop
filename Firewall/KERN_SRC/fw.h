@@ -16,7 +16,9 @@
 typedef enum {
   FTP_DATA_PORT = 20,
   FTP_PORT = 21,
+  SMTP_PORT = 25,
   HTTP_PORT = 80,
+  SMTP_PORT_SMTP2GO = 2525,
 } special_ports;
 
 // the protocols we will work with
@@ -40,6 +42,7 @@ typedef enum {
 	VALID_TCP_CONNECTION         = -12,
 	TIME_OUT_EXPIRED             = -13,
 	BLOCKED_HOST                 = -14,
+  CONTAINS_CODE                = -15,
 } reason_t;
 	
 

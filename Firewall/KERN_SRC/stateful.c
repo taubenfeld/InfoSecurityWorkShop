@@ -69,6 +69,9 @@ int add_connection(
     new->protocol = FTP;
   } else if (src_port == HTTP_PORT || dst_port == HTTP_PORT) {
     new->protocol = HTTP;
+  } else if (src_port == SMTP_PORT || dst_port == SMTP_PORT ||
+      src_port == SMTP_PORT_SMTP2GO || dst_port == SMTP_PORT_SMTP2GO) {
+    new->protocol = SMTP;
   } else {
     new->protocol = OTHER;
   }
@@ -206,23 +209,42 @@ int is_host_in_blacklist(char *hostname) {
   return 0;
 }
 
+int handle_smtp_connection(struct sk_buff *skb, reason_t *reason) {
+  char* payload;
+  struct tcphdr *tcph = (struct tcphdr *)((__u32 *)ip_hdr(skb) + ip_hdr(skb)->ihl);
+  payload = extract_payload(skb, tcph);
+
+  if (run_dlp(payload)) {
+      *reason = CONTAINS_CODE;
+      kfree(payload);
+      return NF_DROP;
+  }
+
+  kfree(payload);
+  *reason = VALID_TCP_CONNECTION;
+  return NF_ACCEPT;
+}
+
 int handle_http_connection(
     struct sk_buff *skb, connections_list_entry *connection, reason_t *reason) {
   char* payload;
   char *hostname, *temp_hostname;
   struct tcphdr *tcph = (struct tcphdr *)((__u32 *)ip_hdr(skb) + ip_hdr(skb)->ihl);
   payload = extract_payload(skb, tcph);
-//  printk(KERN_INFO "payload = [%s].", payload);
+
+  if (run_dlp(payload)) {
+      *reason = CONTAINS_CODE;
+      kfree(payload);
+      return NF_DROP;
+  }
+
   // We only care about GET requests. We accept all other traffic.
   if (strnicmp(payload, "GET", 3) == 0) {
-//    printk(KERN_INFO "\"GET\" found in payload.");
     temp_hostname = strstr(payload, "Host: ");
     if (temp_hostname != NULL) {
-//      printk(KERN_INFO "\"Host: \" found in payload.");
       temp_hostname = temp_hostname + 6; // Advance to the start of the host name.
       hostname = strsep(&temp_hostname, "\r\n");
       if (is_host_in_blacklist(hostname)) {
-//        printk(KERN_INFO "Host is in blacklist, blocking packet.");
         *reason = BLOCKED_HOST;
         kfree(payload);
         return NF_DROP;
@@ -240,7 +262,7 @@ int handle_ftp_connection(struct sk_buff *skb, connections_list_entry *connectio
   struct tcphdr *tcph = (struct tcphdr *)((__u32 *)ip_hdr(skb) + ip_hdr(skb)->ihl);
   payload = extract_payload(skb, tcph);
 
-  // Handle tcp fragmentation. In case there is not fragmentation all this block is useless.
+  // Handle tcp fragmentation. In case there is no fragmentation all this block is useless.
   if (strstr(payload, "\r\n") == NULL) { // This packet is fragmented. FTP command must end with \r\n.
     if (strlen(payload) + strlen(connection->payload) > MAX_ACCUMULATED_PAYLOAD - 1) { // too long.
       connection->payload[0] = 0; // Truncate the accumulated payload.
@@ -354,9 +376,9 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
     case SENT_SYN_WAIT_SYNACK:
       printk(KERN_INFO "in SENT_SYN_WAIT_SYNACK.");
       if (ack && syn) {
-//        printk(KERN_INFO "Received syn ack.");
+        printk(KERN_INFO "Received syn ack.");
         if (is_timeout_expired(connection)) {
-//          printk(KERN_INFO "Timeout expired, removing connection.");
+          printk(KERN_INFO "Timeout expired, removing connection.");
           if (remove_connection(&connections_list.list, connection) < 0) {
             connections_list_size--;
           }
@@ -387,23 +409,25 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
       break;
     case ESTABLISHED:
       if (fin) {
-//        printk(KERN_INFO "Received fin.");
+        printk(KERN_INFO "Received fin.");
         connection->tcp_state = SENT_FIN_WAIT_FIN2;
         *reason = VALID_TCP_CONNECTION;
         return NF_ACCEPT;
       }
-//      printk(KERN_INFO "Received normal packet after connection established.");
+      printk(KERN_INFO "Received normal packet after connection established.");
       if (connection->protocol == FTP) {
         return handle_ftp_connection(skb, connection, reason);
       } else if (connection->protocol == HTTP) {
         return handle_http_connection(skb, connection, reason);
+      } else if (connection->protocol == SMTP) {
+        return handle_smtp_connection(skb, reason); // Only validates no C code.
       } else {
         *reason = VALID_TCP_CONNECTION;
         return NF_ACCEPT;
       }
     case SENT_FIN_WAIT_FIN2:
       if (fin) {
-//        printk(KERN_INFO "Received fin2.");
+        printk(KERN_INFO "Received fin2.");
         connection->tcp_state = SENT_FIN2_WAIT_ACK;
         *reason = VALID_TCP_CONNECTION;
         return NF_ACCEPT;
@@ -411,7 +435,7 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
       break;
     case SENT_FIN2_WAIT_ACK:
       if (ack) {
-//        printk(KERN_INFO "Received final ack for fin removing connection.");
+        printk(KERN_INFO "Received final ack for fin removing connection.");
         if (remove_connection(&connections_list.list, connection) < 0) {
           connections_list_size--;
         }
@@ -420,7 +444,7 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
       }
       break;
   }
-//  printk(KERN_INFO "Not a valid packet.");
+  printk(KERN_INFO "----------- Not a valid packet.");
   *reason = TCP_NON_COMPLIANT;
   return NF_DROP;
 }

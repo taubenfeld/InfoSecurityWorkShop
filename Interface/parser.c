@@ -426,6 +426,9 @@ void get_string_from_reason(int reason, char buf[]) {
   case (BLOCKED_HOST):
     sprintf(buf, "%s", "BLOCKED_HOST");
     break;
+  case (CONTAINS_CODE):
+    sprintf(buf, "%s", "CONTAINS_CODE");
+    break;
   default:
     sprintf(buf, "%d", reason);
   }

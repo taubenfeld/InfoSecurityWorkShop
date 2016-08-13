@@ -1,21 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <section name="Workbench">
+	<section name="org.eclipse.ui.texteditor.GotoLineAction$GotoLineDialog_dialogBounds">
+		<item value="653" key="DIALOG_X_ORIGIN"/>
+		<item value="400" key="DIALOG_Y_ORIGIN"/>
+	</section>
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
 		<item value="false" key="isRegEx"/>
-		<item value="snprintf" key="selection"/>
+		<item value="connection" key="selection"/>
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
 		<item value="true" key="wrap"/>
 		<item value="false" key="wholeword"/>
 		<list key="findhistory">
-			<item value="snprintf"/>
-			<item value="sprintf"/>
-			<item value="clear"/>
-			<item value="parse_ips_from_string"/>
-			<item value="-----"/>
-			<item value="parse_rule_from_string"/>
-			<item value="logs_kernel_format_to_user_format"/>
-			<item value="gcc"/>
+			<item value="connection"/>
+			<item value="extract_payload"/>
+			<item value="add_connection"/>
+			<item value="add_c"/>
+			<item value="in SENT"/>
+			<item value="in sentdsyn"/>
+			<item value="in sent syn"/>
+			<item value="Adding new"/>
 		</list>
 		<list key="replacehistory">
 			<item value="printf"/>
@@ -32,7 +36,7 @@
 		<item value="312" key="DIALOG_WIDTH"/>
 		<item value="1|Ubuntu|11.0|0|GTK|1|" key="DIALOG_FONT_NAME"/>
 		<item value="437" key="DIALOG_HEIGHT"/>
-		<item value="1053" key="DIALOG_X_ORIGIN"/>
-		<item value="189" key="DIALOG_Y_ORIGIN"/>
+		<item value="1277" key="DIALOG_X_ORIGIN"/>
+		<item value="77" key="DIALOG_Y_ORIGIN"/>
 	</section>
 </section>

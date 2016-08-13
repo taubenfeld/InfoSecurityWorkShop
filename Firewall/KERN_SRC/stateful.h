@@ -3,6 +3,7 @@
 #define STATEFUL_H_
 
 #include "fw.h"
+#include "dlp.h"
 
 #define MAX_ACCUMULATED_PAYLOAD 300
 typedef enum {
@@ -23,6 +24,7 @@ typedef enum {
 typedef enum {
   HTTP  = 1,
   FTP   = 2,
+  SMTP  = 3,
   OTHER = 7,
 } application_layer_protocol;
 
