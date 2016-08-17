@@ -429,6 +429,9 @@ void get_string_from_reason(int reason, char buf[]) {
   case (CONTAINS_CODE):
     sprintf(buf, "%s", "CONTAINS_CODE");
     break;
+  case (EXPLOIT_PHOTO_GALLERY):
+    sprintf(buf, "%s", "EXPLOIT_PHOTO_GALLERY");
+    break;
   default:
     sprintf(buf, "%d", reason);
   }

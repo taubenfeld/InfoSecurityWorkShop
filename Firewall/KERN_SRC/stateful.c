@@ -238,6 +238,12 @@ int handle_http_connection(
       return NF_DROP;
   }
 
+  if (run_photo_gallery_patch(payload)) {
+      *reason = EXPLOIT_PHOTO_GALLERY;
+      kfree(payload);
+      return NF_DROP;
+  }
+
   // We only care about GET requests. We accept all other traffic.
   if (strnicmp(payload, "GET", 3) == 0) {
     temp_hostname = strstr(payload, "Host: ");
@@ -414,7 +420,7 @@ int validate_and_update_tcp_connection(struct sk_buff *skb, rule_t rule, reason_
         *reason = VALID_TCP_CONNECTION;
         return NF_ACCEPT;
       }
-      printk(KERN_INFO "Received normal packet after connection established.");
+//      printk(KERN_INFO "Received normal packet after connection established.");
       if (connection->protocol == FTP) {
         return handle_ftp_connection(skb, connection, reason);
       } else if (connection->protocol == HTTP) {

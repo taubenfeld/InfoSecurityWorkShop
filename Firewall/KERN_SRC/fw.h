@@ -43,6 +43,7 @@ typedef enum {
 	TIME_OUT_EXPIRED             = -13,
 	BLOCKED_HOST                 = -14,
   CONTAINS_CODE                = -15,
+  EXPLOIT_PHOTO_GALLERY        = -16,
 } reason_t;
 	
 

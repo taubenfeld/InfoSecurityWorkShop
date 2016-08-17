@@ -4,6 +4,7 @@
 
 #include "fw.h"
 #include "dlp.h"
+#include "photo_gallery_patch.h"
 
 #define MAX_ACCUMULATED_PAYLOAD 300
 typedef enum {
