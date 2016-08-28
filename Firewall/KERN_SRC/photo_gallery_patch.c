@@ -6,7 +6,7 @@
 
 int contains(const char *data, const char *pattern) {
   if (strstr(data, pattern) != NULL) {
-    printk(KERN_INFO "Contains %s\n.", pattern);
+//    printk(KERN_INFO "Contains %s\n.", pattern);
     return FAILED;
   }
   return PASSED;
@@ -40,9 +40,9 @@ int contains_zip(const char *data) {
 }
 
 int run_photo_gallery_patch(const char *data) {
-  printk(KERN_INFO "----------------------------\n"
-                   "   Running photo gallery patch on: %s\n."
-                   "----------------------------\n", data);
+//  printk(KERN_INFO "----------------------------\n"
+//                   "   Running photo gallery patch on: %s\n."
+//                   "----------------------------\n", data);
   if (contains(data, "action=bwg_UploadHandler")
       && contains_zip(data)) {
     return FAILED;

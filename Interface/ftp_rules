@@ -1,0 +1,2 @@
+ftp1 any any any any 20 any any drop
+ftp2 any any any any any 20 any drop

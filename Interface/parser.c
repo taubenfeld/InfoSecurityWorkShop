@@ -432,6 +432,9 @@ void get_string_from_reason(int reason, char buf[]) {
   case (EXPLOIT_PHOTO_GALLERY):
     sprintf(buf, "%s", "EXPLOIT_PHOTO_GALLERY");
     break;
+  case (EXPLOIT_CUSTOM_CONTACT_FORM):
+    sprintf(buf, "%s", "EXPLOIT_CUSTOM_CONTACT_FORM");
+    break;
   default:
     sprintf(buf, "%d", reason);
   }

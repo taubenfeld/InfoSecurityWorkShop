@@ -893,6 +893,7 @@ deps_/home/fw/link_workspace/Firewall/KERN_SRC/fw_module.o := \
   /home/fw/link_workspace/Firewall/KERN_SRC/dlp.h \
   include/linux/ctype.h \
   /home/fw/link_workspace/Firewall/KERN_SRC/photo_gallery_patch.h \
+  /home/fw/link_workspace/Firewall/KERN_SRC/custom_contact_form_patch.h \
 
 /home/fw/link_workspace/Firewall/KERN_SRC/fw_module.o: $(deps_/home/fw/link_workspace/Firewall/KERN_SRC/fw_module.o)
 

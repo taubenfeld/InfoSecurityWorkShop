@@ -44,6 +44,7 @@ typedef enum {
 	BLOCKED_HOST                 = -14,
   CONTAINS_CODE                = -15,
   EXPLOIT_PHOTO_GALLERY        = -16,
+  EXPLOIT_CUSTOM_CONTACT_FORM  = -19,
 } reason_t;
 	
 

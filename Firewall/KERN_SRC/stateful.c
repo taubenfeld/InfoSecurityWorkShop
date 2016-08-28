@@ -244,6 +244,12 @@ int handle_http_connection(
       return NF_DROP;
   }
 
+  if (run_custom_contact_form_patch(payload)) {
+      *reason = EXPLOIT_CUSTOM_CONTACT_FORM;
+      kfree(payload);
+      return NF_DROP;
+  }
+
   // We only care about GET requests. We accept all other traffic.
   if (strnicmp(payload, "GET", 3) == 0) {
     temp_hostname = strstr(payload, "Host: ");
